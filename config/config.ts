@@ -76,7 +76,7 @@ export default defineConfig({
    * @name layout 插件
    * @doc https://umijs.org/docs/max/layout-menu
    */
-  title: 'Computer Manger',
+  title: 'Hua Player',
   layout: {
     locale: true,
     ...defaultSettings,
@@ -141,7 +141,7 @@ export default defineConfig({
     // },
     {
       requestLibPath: "import { request } from '@umijs/max'",
-      schemaPath: 'http://localhost:8081/api-tushu/v2/api-docs',
+      schemaPath: 'http://localhost:9999/v3/api-docs',
       projectName: 'swagger',
     },
   ],

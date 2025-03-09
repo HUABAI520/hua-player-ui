@@ -11,14 +11,30 @@ import { useState } from 'react';
 import { history, useModel } from '@@/exports';
 import { ProFormSelect } from '@ant-design/pro-components';
 
-import { getUserLoginUsingGet, updateUserUsingPost } from '@/services/swagger/userController';
+import {
+  getUserLoginUsingGet,
+  updateUserUsingPost,
+  uploadFile,
+} from '@/services/api/userController';
 import styles from './BaseView.less';
+import { updateAnimePicture } from '@/services/api/animeController';
 // 头像组件 方便以后独立，增加裁剪之类的功能
-const AvatarView = ({ avatar }: { avatar: string }) => {
+export const AvatarView = ({
+  avatar,
+  animeId,
+  reload,
+  onCancel,
+}: {
+  avatar: string | undefined;
+  animeId?: number;
+  reload?: () => void;
+  onCancel?: () => void;
+}) => {
   const [fileList, setFileList] = useState<File[]>([]); // 文件列表
   const [previewUrl, setPreviewUrl] = useState<string | null>(null); // 用户选择的头像预览 URL
   const [isAvatarSelected, setIsAvatarSelected] = useState<boolean>(false); // 标记是否已选择头像\
-  const [string, setString] = useState<string>('选择头像'); // 字符串
+  const [string, setString] = useState<string>(animeId ? '选择动漫封面' : '选择头像'); // 字符串
+
   const beforeUpload = (file: any) => {
     // 在这里处理文件，例如读取文件内容等
     const reader = new FileReader();
@@ -47,13 +63,30 @@ const AvatarView = ({ avatar }: { avatar: string }) => {
       try {
         const formData = new FormData();
         formData.append('file', avatarFile);
-        message.error('未实现');
-        // const response = await uploadFileUsingPOST({ biz: 'avatar' }, {}, avatarFile); // 替换成实际的上传头像的接口
-        // if (response) {
-        //   message.success('上传成功!');
-        //   // 上传成功后清空已选择头像的状态
-        //   setIsAvatarSelected(false);
-        // }
+        if (animeId) {
+          const res = await updateAnimePicture(
+            {
+              id: animeId,
+            },
+            avatarFile,
+          );
+          if (res) {
+            message.success('上传成功!');
+            // 上传成功后清空已选择头像的状态
+            setIsAvatarSelected(false);
+            setString('重新选择');
+            reload?.();
+            onCancel?.();
+          }
+        } else {
+          const response = await uploadFile(avatarFile); // 上传头像的接口
+          if (response) {
+            message.success('上传成功!');
+            // 上传成功后清空已选择头像的状态
+            setIsAvatarSelected(false);
+          }
+        }
+
         // console.log('Upload Response:', response);
       } catch (error) {
         console.error('Upload Error:', error);
@@ -64,14 +97,14 @@ const AvatarView = ({ avatar }: { avatar: string }) => {
 
   const showConfirm = () => {
     Modal.confirm({
-      title: '确认上传头像？',
+      title: '确认上传' + (animeId ? '动漫封面？' : '头像？'),
       icon: <ExclamationCircleOutlined />,
       onOk: handleUpload,
     });
   };
   return (
     <>
-      <div className={styles.avatar_title}>头像</div>
+      <div className={styles.avatar_title}>{animeId ? '动漫封面' : '头像'}</div>
       <div className={styles.avatar}>
         {previewUrl ? (
           <img src={previewUrl} alt="avatar" style={{ maxWidth: '100%', maxHeight: '100%' }} />
@@ -94,7 +127,7 @@ const AvatarView = ({ avatar }: { avatar: string }) => {
       {isAvatarSelected && (
         <div className={styles.button_view}>
           <Button type="primary" onClick={showConfirm}>
-            上传头像
+            {'上传' + (animeId ? '动漫封面？' : '头像')}
           </Button>
         </div>
       )}
@@ -188,13 +221,12 @@ const BaseView = () => {
               <ProFormText
                 width="md"
                 name="email"
-                label="邮箱"
-                rules={[
-                  {
-                    required: true,
-                    message: '请输入您的邮箱!',
-                  },
-                ]}
+                label={
+                  <Tooltip title="暂不允许修改~" color={'#f50'}>
+                    <span>邮箱</span>
+                  </Tooltip>
+                }
+                disabled
               />
               <ProFormText
                 width="md"
@@ -207,7 +239,6 @@ const BaseView = () => {
                   },
                 ]}
               />
-
               <ProFormText
                 width="md"
                 name="userAccount"
@@ -252,17 +283,6 @@ const BaseView = () => {
                 ]}
                 placeholder="个人简介"
               />
-
-              <ProFormFieldSet
-                name="phone"
-                label={
-                  <Tooltip title="请在安全设置更改" color={'#f50'}>
-                    <span>联系电话</span>
-                  </Tooltip>
-                }
-              >
-                <Input className={styles.phone_number} disabled={true} />
-              </ProFormFieldSet>
               <ProFormDatePicker
                 width={'md'}
                 name="createTime"

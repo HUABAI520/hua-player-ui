@@ -1,5 +1,5 @@
-/* eslint-disable no-restricted-globals */
-/* eslint-disable no-underscore-dangle */
+/* eslint-disable no.ts-restricted-globals */
+/* eslint-disable no.ts-underscore-dangle */
 /* globals workbox */
 workbox.core.setCacheNameDetails({
   prefix: 'antd-pro',

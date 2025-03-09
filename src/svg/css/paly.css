@@ -1,0 +1,58 @@
+.line {
+  width: 2px;
+  display: inline-block;
+  animation-duration: 0.8s; /* 动画速度适中 */
+  animation-timing-function: linear; /* 线性过渡 */
+  animation-iteration-count: infinite; /* 无限循环 */
+}
+
+/* 左边竖线动画 */
+.line-left {
+  animation-name: bounce-left;
+}
+
+@keyframes bounce-left {
+  0%, 100% {
+    height: 12px; /* 最长 */
+  }
+  33% {
+    height: 8px; /* 中间长度 */
+  }
+  66% {
+    height: 4px; /* 最短 */
+  }
+}
+
+/* 中间竖线动画 */
+.line-middle {
+  animation-name: bounce-middle;
+}
+
+@keyframes bounce-middle {
+  0%, 100% {
+    height: 8px; /* 中间长度 */
+  }
+  33% {
+    height: 12px; /* 最长 */
+  }
+  66% {
+    height: 4px; /* 最短 */
+  }
+}
+
+/* 右边竖线动画 */
+.line-right {
+  animation-name: bounce-right;
+}
+
+@keyframes bounce-right {
+  0%, 100% {
+    height: 4px; /* 最短 */
+  }
+  33% {
+    height: 8px; /* 中间长度 */
+  }
+  66% {
+    height: 12px; /* 最长 */
+  }
+}

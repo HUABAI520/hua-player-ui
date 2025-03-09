@@ -5,8 +5,8 @@ body,
   margin: 0;
   padding: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
-    'Noto Color Emoji';
+  'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+  'Noto Color Emoji';
 }
 
 .colorWeak {
@@ -35,3 +35,486 @@ ul,
 ol {
   list-style: none;
 }
+
+@media (max-width: 768px) {
+  .ant-table {
+    width: 100%;
+    overflow-x: auto;
+
+    &-thead > tr,
+    &-tbody > tr {
+      > th,
+      > td {
+        white-space: pre;
+
+        > span {
+          display: block;
+        }
+      }
+    }
+  }
+}
+
+.label-style {
+  color: red;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.custom-select {
+  width: 120px;
+  margin-right: 5%; /* 默认的 margin */
+
+  @media (min-width: 768px) {
+    /* 对于大于 768px 的屏幕 */
+    margin-right: 10%;
+  }
+
+  @media (min-width: 992px) {
+    /* 对于大于 992px 的屏幕 */
+    margin-right: 10%;
+  }
+
+  @media (min-width: 1200px) {
+    /* 对于大于 1200px 的屏幕 */
+    margin-right: 10%;
+  }
+}
+
+/* Calculator.css */
+// @see @/common/tool/Calculator
+.calculator {
+  width: 200px;
+  padding: 2px;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.btn {
+  width: 100%;
+  height: 40px;
+  font-size: 18px;
+}
+
+.btn-equals {
+  color: #fff;
+  background-color: #1890ff !important;
+}
+
+// --------- 为了表格和输入框融合 @see src/pages/Form/Purchase/PurchaseAdd/components/ContentComponent.tsx----
+// 自定义表格样式
+.my-custom-table .ant-table-tbody > tr > td {
+  margin: 0;
+  padding: 0 0;
+  border: none;
+}
+
+
+// 表头
+.my-custom-table .ant-table-thead > tr > th {
+  padding: 0 0;
+  color: #333; /* 改变表头字体颜色 */
+  font-size: 14px; /* 改变表头字体大小 */
+  background-color: #f5f5f5; /* 改变表头背景颜色 */
+  border-bottom: none; /* 去除表头底部边框 */
+}
+
+.my-custom-table {
+  margin-top: 6px;
+}
+
+// 表格尾部
+.my-custom-table .ant-table-footer {
+  margin: 0;
+  padding: 0 0;
+}
+
+/* 输入框的样式 */
+.my-specific-input {
+  // width: 128px; /* 设置一个固定宽度或最大宽度 */
+  overflow: hidden; /* 溢出的内容隐藏 */
+  white-space: nowrap; /* 保持文本在一行显示 */
+  text-overflow: ellipsis; /* 溢出的文本显示为省略号 */
+}
+
+/* 隐藏输入框的边框，并设置其他样式 */
+.my-specific-input.ant-input {
+  margin: 0;
+  border: none; /* 隐藏边框 */
+  border-radius: 0;
+  /* 移除输入框聚焦时的默认轮廓 */
+  outline: none;
+  /* 移除输入框的内阴影 */
+  box-shadow: none;
+}
+
+/* 保留聚焦时的高亮效果 */
+.my-specific-input.ant-input:focus {
+  box-shadow: 0 0 3px red; /* 设置聚焦时的阴影，模拟边框高亮 */
+}
+
+/* 隐藏选择器框的边框，并设置其他样式 */
+.my-specific-select.ant-select-selector {
+  margin: 0;
+  border: none; /* 隐藏边框 */
+  border-radius: 0;
+  /* 移除输入框聚焦时的默认轮廓 */
+  outline: none;
+  /* 移除输入框的内阴影 */
+  box-shadow: none;
+}
+
+/* 保留聚焦时的高亮效果 */
+.my-specific-select.ant-select-selector:focus {
+  box-shadow: 0 0 3px red; /* 设置聚焦时的阴影，模拟边框高亮 */
+}
+
+.my-specific-input-number {
+  width: 100%;
+  margin: 0;
+  padding: 0 0;
+  border: none; /* 隐藏边框 */
+  border-radius: 0;
+  /* 移除输入框聚焦时的默认轮廓 */
+  outline: none;
+  /* 移除输入框的内阴影 */
+  box-shadow: none;
+}
+
+/* 保留聚焦时的高亮效果 */
+.my-specific-input-number:focus {
+  box-shadow: 0 0 3px red; /* 设置聚焦时的阴影，模拟边框高亮 */
+}
+
+// 标签
+.custom-tab .ant-tabs-card .ant-tabs-tab {
+  //margin: 2px !important;
+  height: 23px;
+  /* 根据需要设置外边距 下边距为0 其他为2 */
+  margin: 0px 2px 2px 2px !important;
+  padding: 5px 5px !important;
+  //// 设置字体颜色
+  //color: black;
+  //font-size: 12px;
+  //background: white; /* 根据需要设置背景 */
+  ////边框描边 灰色
+  //border: 0.5px solid rgba(0, 0, 0, 0.25);
+  //// 不圆润
+  //border-radius: 0 !important;
+  ///* 其他样式按需添加 */
+}
+
+.custom-tab .ant-tabs-content-holder {
+  top: 0; /* 从顶部开始 */
+  width: 100%; /* 覆盖整个元素宽度 */
+  height: 100%; /* 覆盖整个元素高度 */
+  padding: 0 !important;
+  background: linear-gradient(to bottom, #d3d3d3, #fff); /* 从上到下的渐变 */
+}
+
+// 删除按钮
+.custom-tab .ant-tabs-card .ant-tabs-tab-remove {
+  margin: 0 !important;
+  padding: 0 5px;
+  font-size: 10px;
+  /* 其他样式按需添加 */
+}
+
+// 页头
+.custom-tab .ant-page-header {
+  padding: 0 40px 0 !important;
+  /* 其他样式按需添加 */
+}
+
+// 整个标签
+.custom-tab .ant-tabs {
+  height: 26px !important;
+  margin-bottom: 2px;
+  /* 其他样式按需添加 */
+}
+
+.custom-tab .ant-tabs-nav {
+  height: 25px !important;
+  margin-bottom: 0;
+  /* 其他样式按需添加 */
+}
+
+/**
+ 定义一个滚动条不显示出来的样式
+ */
+.custom-scrollbar2::-webkit-scrollbar {
+  display: none;
+}
+
+/* 定义滚动条轨道的样式 */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px; /* 滚动条宽度 */
+  height: 8px; /* 滚动条高度 */
+}
+
+/* 定义滚动条滑块的样式 */
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  //background-color: #c9ccd0; /* 滑块颜色 */
+  background-color: var(--hua--color); /* 滑块颜色 */
+  border-radius: 4px; /* 滑块圆角 */
+}
+
+/* 定义滚动条轨道的样式 */
+.custom-scrollbar::-webkit-scrollbar-track {
+  //background-color: #e8e9ea; /* 轨道颜色 */
+  //background-color: var(--gui--color); /* 轨道颜色 */
+  border-radius: 4px; /* 轨道圆角 */
+}
+
+@keyframes shanghua {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0px);
+    opacity: 1;
+  }
+}
+
+.shang-anime {
+  animation: shanghua 0.5s ease-in-out;
+}
+
+// 这个下面是改造选择器按钮的样式
+.my-radio-button .ant-radio-button-wrapper {
+  border: none;
+  background-color: transparent;
+}
+
+
+/* 移除选中状态下的边框，仅使文字高亮 */
+.my-radio-button .ant-radio-button-wrapper-checked {
+  border: none;
+
+  font-weight: bold; /* 可选：使选中文字变为粗体 */
+}
+
+/* 去除按钮间的左边框 */
+.my-radio-button .ant-radio-button-wrapper:not(:first-child)::before {
+  display: none;
+}
+
+/* 当鼠标悬停时，保持一致的样式 */
+.my-radio-button .ant-radio-button-wrapper:hover {
+  border: none;
+  background-color: transparent;
+}
+.ant-pro-global-header-header-actions-hover:hover{
+  background-color: transparent!important;
+}
+
+//.custom-tab .ant-tabs-tab .ant-tabs-tab {
+//  padding: 0;
+//  border: none; /* 移除卡片边框 */
+//  background: transparent; /* 根据需要设置背景 */
+//  margin: 0; /* 根据需要设置外边距 */
+//  /* 其他样式按需添加 */
+//}
+//
+//.custom-tab .ant-tabs-tab .ant-tabs-tab-active {
+//  /* 激活状态下的样式 */
+//  border-bottom: 2px solid #1890ff; /* 例如，设置底部边框高亮 */
+//}
+
+
+/* 在你的 CSS 文件中添加媒体查询 */
+@media (max-width: 768px) {
+  .flex-container {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .artplayer {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .card {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 20px; /* 为了防止与上方的元素紧贴 */
+  }
+}
+
+.colorSelect {
+  float: left;
+  width: 20px;
+  height: 20px;
+  margin-block-start: 8px;
+  margin-inline-end: 8px;
+  color: #fff;
+  font-weight: bold;
+  text-align: center;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.colorSelect2 {
+  width: 20px;
+  height: 20px;
+  margin-block-start: 8px;
+  margin-inline-end: 8px;
+  font-weight: bold;
+  text-align: center;
+  border-radius: 2px;
+  cursor: pointer;
+  background: linear-gradient(90deg, rgb(16, 168, 233) 0%, rgb(37, 158, 41) 85%);
+}
+
+:root {
+  --color-gray: #9099A0;
+  --bili-color: #FB7299;
+  --text--white: #FFFFFFD9;
+  --hua--color: #c9ccd0; /* 滑块颜色 */
+  --gui--color: #e8e9ea; /* 轨道颜色 */
+
+}
+
+
+.like-active {
+  // 当鼠标放在上面是颜色为pink
+  color: var(--color-gray);
+
+  :hover {
+    color: var(--bili-color);
+  }
+}
+
+.colorSelect {
+  position: relative; /* 确保 Check 可以绝对定位 */
+}
+
+
+// 选择组件的动画
+.check-icon {
+  opacity: 0; /* 初始透明度为 0 */
+  transition: opacity 0.5s ease-in-out; /* 过渡效果 */
+  position: absolute; /* 绝对定位 */
+  top: 50%; /* 垂直居中 */
+  left: 50%; /* 水平居中 */
+  transform: translate(-50%, -50%); /* 在中心点 */
+}
+
+.colorSelect.active .check-icon {
+  opacity: 1; /* active 状态下透明度为 1 */
+}
+
+// 保留原有的样式...
+
+// 修改和添加以下样式
+.my-radio-button {
+  .ant-radio-button-wrapper {
+    border: none;
+    background-color: transparent;
+    transition: all 0.5s ease-in-out; // 添加过渡效果
+
+    &:hover {
+      transform: scale(1.05); // 鼠标悬停时稍微放大
+    }
+  }
+
+  .ant-radio-button-wrapper-checked {
+    border: none;
+    font-weight: bold;
+    transform: scale(1.05); // 选中时稍微放大
+  }
+
+  .ant-radio-button-wrapper:not(:first-child)::before {
+    display: none;
+  }
+
+  .ant-radio-button-wrapper:hover {
+    border: none;
+    background-color: transparent;
+  }
+}
+
+// 添加动画效果
+@keyframes buttonPop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1.05);
+  }
+}
+
+.my-radio-button .ant-radio-button-wrapper-checked {
+  animation: buttonPop 0.3s ease;
+}
+
+// 在文件末尾添加以下样式
+
+.dongman-list-container {
+  display: flex;
+  flex-direction: row; // 改回从左到右的顺序
+  min-width: 1229px;
+
+  @media (max-width: 768px) {
+    flex-direction: column; // 在小屏幕上保持列布局
+  }
+}
+
+.content-section {
+  width: 72%;
+  padding: 10px;
+
+  @media (max-width: 768px) {
+    width: 100%;
+    order: 1; // 在小屏幕上将内容部分移到筛选部分下方
+  }
+}
+
+.filter-section {
+  width: 28%;
+  padding: 10px;
+  background-color: transparent;
+  max-height: 85vh;
+  overflow-y: auto;
+
+  @media (max-width: 768px) {
+    width: 100%;
+    max-height: none;
+    overflow-y: visible;
+    order: 0; // 在小屏幕上将筛选部分移到顶部
+  }
+}
+
+.anime-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.anime-item {
+  display: flex;
+  justify-content: center;
+}
+
+.anime-series-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
+  justify-content: space-between;
+}
+
+// 保持卡片间距不变
+.MaCard, .ThreeDCard {
+  margin-right: 5px;
+  margin-left: 5px;
+}
+
+

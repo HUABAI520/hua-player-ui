@@ -5,7 +5,7 @@ import '@umijs/max';
 import React from 'react';
 
 const Footer: React.FC = () => {
-  const defaultMessage = '402出品';
+  const defaultMessage = '花白出品';
   const currentYear = new Date().getFullYear();
 
   function Gitee() {
@@ -32,8 +32,8 @@ const Footer: React.FC = () => {
           blankTarget: true,
         },
         {
-          key: 'Computer Manager',
-          title: 'Computer Manager',
+          key: 'Hua Player',
+          title: 'Hua Player',
           href: 'https://ant.design',
           blankTarget: true,
         },

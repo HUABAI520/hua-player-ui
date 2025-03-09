@@ -29,7 +29,7 @@ const StepForm: React.FC<TestProps> = ({
   onReload,
 }) => {
   const { initialState } = useModel('@@initialState');
-  const { areaHave } = initialState || {};
+
   const [addType, setAddType] = useState('1'); // 'single' 表示详细添加，'multiple' 表示直接添加
   const [formData, setFormData] = useState({
     freightSpaceId: '',
@@ -87,7 +87,6 @@ const StepForm: React.FC<TestProps> = ({
       model: formDataFromBackend.model || undefined,
       foundationCondition: formDataFromBackend.foundationCondition || undefined,
       viewModel: formDataFromBackend.viewModel || undefined,
-      areaId: areaHave?.id,
     };
     //执行 参数：addCommodity 的添加方法
     res = await addCommodity({

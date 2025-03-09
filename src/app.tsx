@@ -1,12 +1,17 @@
-import { RunTimeLayoutConfig } from '@/.umi-production/plugin-layout/types';
-import { loginPath } from '@/common/GlobalKey';
+import { loginPath, THEME_COLOR, THEME_LIGHT } from '@/common/GlobalKey';
+import { getLocal } from '@/common/utils/LocalUtils';
 import Footer from '@/components/Footer';
 import { Question } from '@/components/RightContent';
-import { getUserLoginUsingGet } from '@/services/swagger/userController';
+import { getUserLoginUsingGet } from '@/services/api/userController';
+import { useLocation } from '@@/exports';
+import { RunTimeLayoutConfig } from '@@/plugin-layout/types';
 import { LinkOutlined } from '@ant-design/icons';
-import type { Settings as LayoutSettings } from '@ant-design/pro-components';
-import { SettingDrawer } from '@ant-design/pro-components';
+import { SettingDrawer, Settings as LayoutSettings } from '@ant-design/pro-components';
 import { history, Link } from '@umijs/max';
+import { TabPaneProps } from 'antd';
+import NProgress from 'nprogress';
+import 'nprogress/nprogress.css';
+import React, { useEffect } from 'react';
 import defaultSettings from '../config/defaultSettings';
 import { AvatarDropdown, AvatarName } from './components/RightContent/AvatarDropdown';
 import { errorConfig } from './requestErrorConfig';
@@ -21,6 +26,7 @@ export async function getInitialState(): Promise<{
   currentUser?: API.UserVO;
   loading?: boolean;
   fetchUserInfo?: () => Promise<API.UserVO | undefined>;
+  tabList?: (TabPaneProps & { key?: React.Key | undefined })[] | { key: string; tab: any }[];
 }> {
   const fetchUserInfo = async () => {
     try {
@@ -33,6 +39,8 @@ export async function getInitialState(): Promise<{
     }
     return undefined;
   };
+  const tabList: (TabPaneProps & { key?: React.Key | undefined })[] | { key: string; tab: any }[] =
+    [];
   // 如果不是登录页面，执行
   const { location } = history;
   if (location.pathname !== loginPath) {
@@ -40,23 +48,51 @@ export async function getInitialState(): Promise<{
     return {
       fetchUserInfo,
       currentUser,
-      settings: defaultSettings as Partial<LayoutSettings>,
+      settings: {
+        ...(defaultSettings as Partial<LayoutSettings>),
+        navTheme: getLocal(THEME_LIGHT + currentUser?.id, defaultSettings.navTheme),
+        colorPrimary: getLocal(THEME_COLOR + currentUser?.id, defaultSettings.colorPrimary),
+      },
+      tabList,
     };
   }
   return {
     fetchUserInfo,
-    settings: defaultSettings as Partial<LayoutSettings>,
+    settings: {
+      ...(defaultSettings as Partial<LayoutSettings>),
+    },
+    tabList,
   };
 }
 
 // ProLayout 支持的api https://procomponents.ant.design/components/layout
 export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) => {
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const location = useLocation();
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    const unlisten = history.listen(() => {
+      NProgress.configure({ showSpinner: false });
+      NProgress.start(); // 路由开始切换时启动进度条
+      const bar2 = document.querySelector('#nprogress .bar') as any;
+      if (bar2) {
+        bar2.style.backgroundColor = initialState?.settings?.colorPrimary; // 将 #yourColor 替换为你希望的颜色}
+      }
+    });
+    NProgress.done(); // 路由切换完成时停止进度条
+    return () => {
+      unlisten(); // 清理监听器，防止内存泄漏
+    };
+  }, [location.pathname]);
+
   return {
     // headerTitleRender: () => <LeftContent />,
-    actionsRender: () => [<Question key="doc" />],
+    actionsRender: () => [<Question />],
     avatarProps: {
       src: initialState?.currentUser?.userAvatar,
       title: <AvatarName />,
+      // @ts-ignore
       render: (_, avatarChildren) => {
         return <AvatarDropdown>{avatarChildren}</AvatarDropdown>;
       },

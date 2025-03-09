@@ -1,0 +1,25 @@
+.elements-container {
+  margin: 1em auto;
+  width: 80%;
+}
+.item {
+  width: 100%;
+  aspect-ratio: 2/1;
+  margin: 5vw 0;
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 10vw;
+  color: #fff;
+}
+.list-item {
+  &:hover {
+    transform: scale(1.05); // 鼠标悬停时稍微放大
+    transition: all 0.3s ease-in-out;
+    // 添加背景颜色和阴影效果
+    background-color: #f5f5f5;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+  }
+}

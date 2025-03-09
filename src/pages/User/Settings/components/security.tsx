@@ -1,5 +1,6 @@
-import { List } from 'antd';
-import React from 'react';
+import { List, message } from 'antd';
+import React, { useState } from 'react';
+import { PasswordModal } from '@/pages/User/ChangePassword';
 
 type Unpacked<T> = T extends (infer U)[] ? U : T;
 
@@ -10,6 +11,7 @@ const passwordStrength = {
 };
 
 const SecurityView: React.FC = () => {
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const getData = () => [
     {
       title: '账户密码',
@@ -19,28 +21,32 @@ const SecurityView: React.FC = () => {
           {passwordStrength.strong}
         </>
       ),
-      actions: [<a key="Modify">修改</a>],
+      actions: [
+        <a key="Modify" onClick={() => setPasswordVisible(true)}>
+          修改
+        </a>,
+      ],
     },
-    {
-      title: '密保手机',
-      description: `已绑定手机：138****8293`,
-      actions: [<a key="Modify">修改</a>],
-    },
-    {
-      title: '密保问题',
-      description: '未设置密保问题，密保问题可有效保护账户安全',
-      actions: [<a key="Set">设置</a>],
-    },
-    {
-      title: '备用邮箱',
-      description: `已绑定邮箱：ant***sign.com`,
-      actions: [<a key="Modify">修改</a>],
-    },
-    {
-      title: 'MFA 设备',
-      description: '未绑定 MFA 设备，绑定后，可以进行二次确认',
-      actions: [<a key="bind">绑定</a>],
-    },
+    // {
+    //   title: '密保手机',
+    //   description: `已绑定手机：138****8293`,
+    //   actions: [<a key="Modify">修改</a>],
+    // },
+    // {
+    //   title: '密保问题',
+    //   description: '未设置密保问题，密保问题可有效保护账户安全',
+    //   actions: [<a key="Set">设置</a>],
+    // },
+    // {
+    //   title: '备用邮箱',
+    //   description: `已绑定邮箱：ant***sign.com`,
+    //   actions: [<a key="Modify">修改</a>],
+    // },
+    // {
+    //   title: 'MFA 设备',
+    //   description: '未绑定 MFA 设备，绑定后，可以进行二次确认',
+    //   actions: [<a key="bind">绑定</a>],
+    // },
   ];
 
   const data = getData();
@@ -54,6 +60,14 @@ const SecurityView: React.FC = () => {
             <List.Item.Meta title={item.title} description={item.description} />
           </List.Item>
         )}
+      />
+      <PasswordModal
+        visible={passwordVisible}
+        onCancel={() => setPasswordVisible(false)}
+        onSuccess={() => {
+          message.success('修改密码成功，请重新登录');
+          setPasswordVisible(false);
+        }}
       />
     </>
   );

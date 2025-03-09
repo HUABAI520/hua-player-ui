@@ -5,11 +5,12 @@ import { Spin } from 'antd';
 import { stringify } from 'qs';
 // import { stringify } from 'querystring';
 
-import { userLogoutUsingPost } from '@/services/swagger/userController';
+import { userLogoutUsingPost } from '@/services/api/userController';
 import type { MenuInfo } from 'rc-menu/lib/interface';
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { flushSync } from 'react-dom';
 import HeaderDropdown from '../HeaderDropdown';
+import ThemeSet from '@/components/Theme/ThemeSet';
 
 export type GlobalHeaderRightProps = {
   menu?: boolean;
@@ -34,7 +35,8 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu, childre
     const redirect = urlParams.get('redirect');
     // Note: There may be security issues, please note
     if (window.location.pathname !== '/user/login' && !redirect) {
-      history.replace({
+      
+      history.push({
         pathname: '/user/login',
         search: stringify({
           redirect: pathname + search,
@@ -59,6 +61,8 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu, childre
   });
   const { initialState, setInitialState } = useModel('@@initialState');
 
+  const [open, setOpen] = useState(false);
+
   const onMenuClick = useCallback(
     (event: MenuInfo) => {
       const { key } = event;
@@ -69,11 +73,14 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu, childre
         });
         loginOut();
         return;
+      } else if (key === 'zuti') {
+        setOpen(true);
+        return;
       }
       // history.push(`/user/${key}`);
       window.open(`/user/${key}`, '_blank');
     },
-    [setInitialState],
+    [setInitialState, setOpen],
   );
 
   const loading = (
@@ -127,6 +134,11 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu, childre
       label: '个人设置',
     },
     {
+      key: 'zuti',
+      icon: <SettingOutlined />,
+      label: '主题设置',
+    },
+    {
       type: 'divider' as const,
     },
     {
@@ -137,14 +149,17 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu, childre
   ];
 
   return (
-    <HeaderDropdown
-      menu={{
-        selectedKeys: [],
-        onClick: onMenuClick,
-        items: menuItems,
-      }}
-    >
-      {children}
-    </HeaderDropdown>
+    <>
+      <HeaderDropdown
+        menu={{
+          selectedKeys: [],
+          onClick: onMenuClick,
+          items: menuItems,
+        }}
+      >
+        {children}
+      </HeaderDropdown>
+      <ThemeSet open={open} setOpen={setOpen} />
+    </>
   );
 };

@@ -7,7 +7,52 @@ import { message, notification } from 'antd';
 import { loginPath } from '@/common/GlobalKey';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
+import NProgress from 'nprogress';
+import 'nprogress/nprogress.css';
+import { stringify } from 'qs';
 import { extend } from 'umi-request';
+/**
+ * 解密
+ */
+/*const decryptData = (encryptedData: string, publicKey: string) => {
+  try {
+    const key = new NodeRSA();
+    key.importKey(publicKey, 'pkcs8-public-pem');
+    // 解密数据
+    const decrypted = key.decryptPublic(Buffer.from(encryptedData, 'base64'), 'utf8');
+    return decrypted;
+  } catch (error) {
+    console.error('解密出错：', error);
+    return null;
+  }
+};*/
+
+/**
+ * 加密
+ */
+// export const encryptData = async (/*data: string, publicKey: string*/) => {
+//   try {
+//     const data = {
+//       id: 1,
+//       name: '张三',
+//     };
+//     const publicKey: string =
+//       'MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDwqW1tj9NoVhXjGjdl4STm9ZQAFaxCvY/VGQkbwCHw86XZjNZMtJCCJgEa+0BItw+SQSIQEjSvZcRjW9xcIJlY4SMXM51dRD2A8KYAR3uHcKOpNlmoKNlxF+xlFIJlLIhMgBhcvZ7/tyf9C37zOeeD1trMEbYTYMYGOWudweIExwIDAQAB';
+//     const key = new NodeRSA();
+//     key.importKey(publicKey, 'pkcs8-public-pem');
+//     // 加密数据
+//     const encrypted = key.encrypt(JSON.stringify(data), 'base64');
+//     message.success('加密后的数据:' + encrypted);
+//     const res = await requireKeyUsingGet({
+//       e: encrypted,
+//     });
+//     message.success('解密后的数据:' + res);
+//     return encrypted;
+//   } catch (error) {
+//     console.error('加密出错：', error);
+//     return null;
+//   }
+// };
 
 /**
  * 配置request请求时的默认参数
@@ -16,16 +61,68 @@ const request = extend({
   credentials: 'include', // 默认请求是否带上cookie
   prefix:
     process.env.NODE_ENV === 'production'
-      ? 'http://8.137.78.53:8888/api-computer'
-      : // ? 'https://l2.ac.cn/api-computer'
-        'http://localhost:8081/api-tushu',
+      ? // ?
+        'http://localhost:9999/api-player'
+      : // 'http://192.168.2.2:9999/api-player'
+        // ?  // 'http://localhost:8888'
+        // ? 'https://l2.ac.cn/api-computer'
+        'http://localhost:9999/api-player',
+  // 'http://192.168.2.2:9999/api-player',
   // requestType: 'Form',
+  errorHandler: (error: any) => {
+    // 请求失败时停止进度条
+    // NProgress.done();
+    return Promise.reject(error);
+  },
+  responseInterceptors: [
+    (response: any) => {
+      // 在这里处理响应数据
+      // NProgress.done(); // 请求成功时停止进度条
+      return response;
+    },
+  ],
 });
+// 存储请求状态的类型
+type RequestMap = {
+  [key: string]: number;
+};
 
+// 存储请求状态
+const requestMap: RequestMap = {};
+
+// 防抖函数
+const debounceRequest = (url: string): boolean => {
+  return true;
+  // const currentTime = Date.now();
+  // const lastRequestTime = requestMap[url];
+  // if (lastRequestTime && currentTime - lastRequestTime < 50) {
+  //   // 如果在300毫秒内已经发送过请求，则不发送
+  //   console.log(`Request debounced: ${url}`);
+  //   return false;
+  // }
+  //
+  // // 存储当前请求的发送时间
+  // requestMap[url] = currentTime;
+  // return true;
+};
 /**
  * 所有请求拦截器
  */
 request.interceptors.request.use((url, options): any => {
+  // 启动进度条
+  // NProgress.start();
+  // 防抖操作
+  const can = debounceRequest(url);
+  if (!can) {
+    // NProgress.done(); // 请求被阻止时立即停止进度条
+    if (url.includes('/noMsg')) {
+    } else message.error('请求过于频繁了哟~，请稍后再试！');
+    return Promise.reject({
+      error: {
+        message: '请求过于频繁了哟~，请稍后再试！',
+      },
+    });
+  }
   // 设置超时提示
   console.log(url, options);
   return {
@@ -77,6 +174,8 @@ const openNotification = (msg: string) => {
  */
 request.interceptors.response.use(async (response, options): Promise<any> => {
   const contentType = response.headers.get('Content-Type');
+  // 请求成功后停止进度条
+  // NProgress.done();
   console.log(options);
   // const rsaKey = localStorage.getItem(rsa);
   if (contentType && contentType.includes('application/json')) {
@@ -112,8 +211,18 @@ request.interceptors.response.use(async (response, options): Promise<any> => {
     }
     if (res.code === 40100) {
       const { location } = history;
+      const { search, pathname } = location;
+      // const urlParams = new URL(window.location.href).searchParams;
+      /** 此方法会跳转到 redirect 参数所在的位置 */
+      // const redirect = urlParams.get('redirect');
       if (location.pathname !== loginPath) {
-        history.push(loginPath);
+        // history.push(loginPath);
+        history.replace({
+          pathname: loginPath,
+          search: stringify({
+            redirect: pathname + search,
+          }),
+        });
       }
       return;
     }
