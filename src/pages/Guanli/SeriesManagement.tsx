@@ -125,9 +125,13 @@ const SeriesManagement: React.FC = () => {
                     }}
                   >
                     <Card.Meta
-                      title={<div style={{ fontSize: '16px', fontWeight: 600 }}>{item.name}</div>}
                       description={
                         <>
+                          <OverflowTooltip
+                            style={{ fontSize: '16px', fontWeight: 'bold' }}
+                            text={`${item?.name}`}
+                            maxWidth={800}
+                          />
                           <OverflowTooltip text={item.intro} maxWidth={600} />
                         </>
                       }
@@ -149,6 +153,7 @@ const SeriesManagement: React.FC = () => {
             onChange={handlePageChange}
             onShowSizeChange={handlePageChange}
             showTotal={(total) => `共 ${total} 个系列`}
+            align="end"
             pageSizeOptions={['12', '24', '48', '96']}
           />
         </div>

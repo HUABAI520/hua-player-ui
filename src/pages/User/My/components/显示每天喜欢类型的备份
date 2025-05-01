@@ -1,0 +1,75 @@
+const createTypePreferenceChart = () => {
+    const allTypes = Array.from(new Set(filteredData.map((d) => d.topType))).filter(Boolean);
+    const colors = [
+      '#1890ff',
+      '#52c41a',
+      '#fadb14',
+      '#eb2f96',
+      '#722ed1',
+      '#13c2c2',
+      '#ff7a45',
+      '#2f54eb',
+    ];
+    const typeColors = allTypes.reduce(
+      (acc, type, i) => ({ ...acc, [type as string]: colors[i % colors.length] }),
+      {},
+    );
+
+    return {
+      tooltip: {
+        trigger: 'item',
+        formatter: (params: any) => {
+          const data = filteredData[params.dataIndex];
+          const icon = selable.find((s) => s.label === data.topType)?.icon || '';
+          return `
+            <div style="padding:8px;background:#fff;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,0.1)">
+              <div style="font-weight:600">${dayjs(data.activityDate).format('YYYY-MM-DD')}</div>
+              <div style="margin-top:8px;display:flex;align-items:center">
+                ${icon ? `<span style="margin-right:8px">${icon}</span>` : ''}
+                类型: ${data.topType || '无记录'}
+              </div>
+            </div>
+          `;
+        },
+      },
+      xAxis: {
+        type: 'category',
+        data: dates,
+        axisLabel: {
+          interval: Math.max(1, Math.floor(dates.length / 7)),
+          rotate: 45,
+          formatter: (value: string) => dayjs(value).format('MM-DD'),
+        },
+      },
+      yAxis: { show: false },
+      visualMap: {
+        type: 'piecewise',
+        orient: 'horizontal',
+        left: 'center',
+        bottom: 10,
+        pieces: allTypes.map((type) => ({
+          value: type,
+          label: (type as string)?.length > 4 ? `${(type as string).slice(0, 4)}...` : type,
+          // @ts-ignore
+          color: typeColors[type as string],
+        })),
+        itemGap: 8,
+        textStyle: { fontSize: 12 },
+      },
+      series: [
+        {
+          type: 'scatter',
+          symbolSize: 16,
+          data: filteredData.map((d) => ({
+            value: [d.activityDate, 0],
+            // @ts-ignore
+            itemStyle: { color: typeColors[d.topType as string] },
+          })),
+          emphasis: {
+            scale: 1.5,
+            itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0, 0, 0, 0.3)' },
+          },
+        },
+      ],
+    };
+  };

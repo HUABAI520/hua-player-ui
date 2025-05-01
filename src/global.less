@@ -205,6 +205,27 @@ ol {
   ///* 其他样式按需添加 */
 }
 
+//.my-layout-pro2 .ant-pro-page-container-children-container {
+//  padding-block-start: 0;
+//  padding-block-end: 0;
+//  padding-inline: 0;
+//}
+.my-layout-pro2 .ant-page-header-no-children {
+  height: 0;
+}
+
+.my-layout-pro .ant-pro-page-container-children-container {
+  padding-block-start: 0;
+  padding-block-end: 0;
+  padding-inline: 0;
+}
+
+.my-layout-pro .ant-page-header-no-children {
+  height: 0;
+}
+.my-layout-pro .ant-layout-content{
+  padding: 0!important;
+}
 .custom-tab .ant-tabs-content-holder {
   top: 0; /* 从顶部开始 */
   width: 100%; /* 覆盖整个元素宽度 */
@@ -240,6 +261,10 @@ ol {
   /* 其他样式按需添加 */
 }
 
+.my-tabs .ant-tabs-nav {
+  background: transparent !important;
+}
+
 /**
  定义一个滚动条不显示出来的样式
  */
@@ -266,7 +291,19 @@ ol {
   //background-color: var(--gui--color); /* 轨道颜色 */
   border-radius: 4px; /* 轨道圆角 */
 }
+/* 自定义滚动条3样式 */
+.custom-scroll::-webkit-scrollbar {
+  height: 6px;
+}
 
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.2);
+  border-radius: 3px;
+}
+
+.custom-scroll::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.05);
+}
 @keyframes shanghua {
   from {
     transform: translateY(50px);
@@ -306,8 +343,9 @@ ol {
   border: none;
   background-color: transparent;
 }
-.ant-pro-global-header-header-actions-hover:hover{
-  background-color: transparent!important;
+
+.ant-pro-global-header-header-actions-hover:hover {
+  background-color: transparent !important;
 }
 
 //.custom-tab .ant-tabs-tab .ant-tabs-tab {

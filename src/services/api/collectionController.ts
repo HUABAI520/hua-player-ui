@@ -147,3 +147,9 @@ export async function collectionsUpdate(
     ...(options || {}),
   });
 }
+export async function collectionsCount(options?: { [key: string]: any }) {
+  return request<number>('/collection/collections/count', {
+    method: 'GET',
+    ...(options || {}),
+  });
+}

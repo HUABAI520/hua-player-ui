@@ -1,12 +1,14 @@
 import { Tooltip } from 'antd';
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 export const OverflowTooltip = ({
   text,
   maxWidth,
+  style,
 }: {
   text: string | undefined;
   maxWidth: number;
+  style?: React.CSSProperties;
 }) => {
   const textRef = useRef<HTMLDivElement>(null);
   const [isOverflow, setIsOverflow] = useState(false);
@@ -36,6 +38,7 @@ export const OverflowTooltip = ({
         WebkitBoxOrient: 'vertical',
         margin: 0,
         cursor: isOverflow ? 'pointer' : 'default', // 仅在溢出时显示指针
+        ...style,
       }}
     >
       {text || <span style={{ color: '#999' }}>暂无描述</span>}

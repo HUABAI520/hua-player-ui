@@ -1,16 +1,16 @@
-import { LogoutOutlined, SettingOutlined } from '@ant-design/icons';
+import { LogoutOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
 import { useEmotionCss } from '@ant-design/use-emotion-css';
 import { history, useModel } from '@umijs/max';
 import { Spin } from 'antd';
 import { stringify } from 'qs';
 // import { stringify } from 'querystring';
 
+import ThemeSet from '@/components/Theme/ThemeSet';
 import { userLogoutUsingPost } from '@/services/api/userController';
 import type { MenuInfo } from 'rc-menu/lib/interface';
 import React, { useCallback, useState } from 'react';
 import { flushSync } from 'react-dom';
 import HeaderDropdown from '../HeaderDropdown';
-import ThemeSet from '@/components/Theme/ThemeSet';
 
 export type GlobalHeaderRightProps = {
   menu?: boolean;
@@ -35,7 +35,6 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu, childre
     const redirect = urlParams.get('redirect');
     // Note: There may be security issues, please note
     if (window.location.pathname !== '/user/login' && !redirect) {
-      
       history.push({
         pathname: '/user/login',
         search: stringify({
@@ -108,11 +107,6 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu, childre
   const menuItems = [
     ...(menu
       ? [
-          // {
-          //   key: 'center',
-          //   icon: <UserOutlined />,
-          //   label: '个人中心',
-          // },
           {
             key: 'settings',
             icon: <SettingOutlined />,
@@ -128,6 +122,11 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu, childre
     //   icon: <UserOutlined />,
     //   label: '个人中心',
     // },
+    {
+      key: 'my',
+      icon: <UserOutlined />,
+      label: '个人中心',
+    },
     {
       key: 'settings',
       icon: <SettingOutlined />,

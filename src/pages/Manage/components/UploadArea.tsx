@@ -1,9 +1,12 @@
 import { formatFileSize } from '@/common/utils/FileSizeUtils';
 import { formatSeekTimeToCHEN } from '@/common/utils/timeUtil';
-import { get, uploadVideo, uploadVideoPicture } from '@/services/api/animeController';
+import { deleteVideo, get, uploadVideo, uploadVideoPicture } from '@/services/api/animeController';
 import { getFileById } from '@/services/api/fileController';
 import {
+  CheckCircleOutlined,
   CheckOutlined,
+  DeleteOutlined,
+  DownloadOutlined,
   FileOutlined,
   InboxOutlined,
   PauseOutlined,
@@ -14,10 +17,12 @@ import {
   Card,
   Image,
   message,
+  Modal,
   Progress,
   Skeleton,
   Space,
   Tag,
+  theme,
   Typography,
   Upload,
   UploadFile,
@@ -38,8 +43,10 @@ const MAX_CHUNK_SIZE = 100 * 1024 * 1024; // 6MB
 const getMaxChunkSize = (fileSize: number): number => {
   return Math.min((Math.floor(fileSize / (200 * oneMb)) + 1) * 5 * oneMb + oneMb, MAX_CHUNK_SIZE);
 };
+const { useToken } = theme;
 const UploadArea: React.FC<UploadAreaProps> = React.memo(
   ({ fileVideo, setFileVideo, getAnimeData, isVisible }) => {
+    const { token } = useToken();
     const [uploadProgress, setUploadProgress] = useState(0);
     const [fileList, setFileList] = useState<UploadFile[]>([]);
     const [blobList, setBlobList] = useState<Blob[]>([]);
@@ -48,6 +55,59 @@ const UploadArea: React.FC<UploadAreaProps> = React.memo(
     const [isUploading, setIsUploading] = useState(false); // 是否运行上传
     const [frames, setFrames] = useState<string[]>();
     const [duration, setDuration] = useState<number>(fileVideo?.duration || 0);
+    // 删除相关状态
+    // 在组件顶部添加状态
+    const [hoverCardId, setHoverCardId] = useState<number | null>(null);
+    const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+    // 在组件顶部 添加 下载状态
+    const [downloading, setDownloading] = useState(false);
+
+    // 下载视频处理函数
+    const handleDownload = async (url: string, fileName: string) => {
+      try {
+        setDownloading(true);
+
+        // 创建隐藏的a标签进行下载
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName || 'video.mp4';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // 如果直接下载有问题，可以使用fetch方式（处理鉴权等）
+        /*
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = fileName;
+        link.click();
+        window.URL.revokeObjectURL(downloadUrl);
+        */
+
+        message.success('开始下载视频文件');
+      } catch (error) {
+        message.error('下载失败: ' + (error as Error).message);
+      } finally {
+        setDownloading(false);
+      }
+    };
+    const confirmDownload = (url: string, fileName: string) => {
+      Modal.confirm({
+        title: '确认下载',
+        content: (
+          <div>
+            <p>即将下载 {fileVideo?.tuozhan?.fileType} 文件</p>
+            <p>文件大小: {formatFileSize(fileVideo?.tuozhan?.size || 0)}</p>
+          </div>
+        ),
+        okText: '确认下载',
+        cancelText: '取消',
+        onOk: () => handleDownload(url, fileName),
+      });
+    };
     const extractFrameAtTime = (
       videoElement: HTMLVideoElement,
       canvas: HTMLCanvasElement,
@@ -145,7 +205,6 @@ const UploadArea: React.FC<UploadAreaProps> = React.memo(
       formData.append('file', blobChunk, fileName);
       console.log('animeId', fileVideo?.animeId);
       console.log('videoId', fileVideo?.id);
-      alert(duration);
       const res = await uploadVideo(
         {
           animeId: fileVideo?.animeId!,
@@ -205,6 +264,7 @@ const UploadArea: React.FC<UploadAreaProps> = React.memo(
           s = prevState;
           return prevState;
         });
+        console.log('processNextChunk:currentIndex:', i);
         i++;
         setCurrentIndex(i); // 更新当前分片索引
       }
@@ -250,13 +310,13 @@ const UploadArea: React.FC<UploadAreaProps> = React.memo(
       // 从每个分片中提取第一帧
       const firstFrameImage = await extractFramesFromVideo(file, times);
       setFrames(firstFrameImage);
-      processNextChunk(); // 开始上传
+      // processNextChunk(); // 开始上传
     };
     useEffect(() => {
       if (!isPaused && isUploading) {
         processNextChunk();
       }
-    }, [isPaused, isUploading, duration]);
+    }, [isPaused, isUploading]);
     const base64ToFile = (base64Data: string, filename: string) => {
       const [metadata, data] = base64Data.split(',');
       const mimeString = metadata.split(':')[1].split(';')[0];
@@ -384,61 +444,157 @@ const UploadArea: React.FC<UploadAreaProps> = React.memo(
           //   }}
           // />
           <Skeleton active loading={!fileVideo.file}>
-            <Card
-              style={{ width: '33vw', minWidth: 300, maxWidth: 400 }}
-              cover={
-                fileVideo?.image ? (
-                  <Image src={fileVideo?.image} alt="视频封面" style={{ borderRadius: '8px' }} />
-                ) : (
-                  <FileOutlined style={{ fontSize: 40 }} />
-                )
-              }
+            <div
+              style={{ position: 'relative' }}
+              onMouseEnter={() => setHoverCardId(fileVideo.id!)}
+              onMouseLeave={() => setHoverCardId(null)}
             >
-              <Card.Meta
-                title={fileVideo?.title}
-                description={
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <Typography.Text>
-                      <strong>时长:</strong>{' '}
-                      {fileVideo?.duration
-                        ? `${formatSeekTimeToCHEN(fileVideo?.duration)}`
-                        : '未知'}
-                    </Typography.Text>
-                    <Typography.Text>
-                      <strong>创建时间:</strong> {fileVideo?.crateTime}
-                    </Typography.Text>
-                    <Typography.Text>
-                      <strong>文件状态:</strong> {fileVideo?.file ? '已上传' : '未上传'}
-                    </Typography.Text>
-                    <Typography.Text>
-                      <strong>文件大小:</strong> {formatFileSize(fileVideo?.tuozhan?.size || 0)}
-                    </Typography.Text>
-                    <Typography.Text>
-                      <strong>文件路径:</strong>{' '}
-                      {fileVideo?.tuozhan?.fullPath ? (
-                        <Typography.Text code>{fileVideo?.tuozhan?.fullPath}</Typography.Text>
-                      ) : (
-                        '未知'
-                      )}
-                    </Typography.Text>
-                    <Typography.Text>
-                      <strong>文件类型:</strong>{' '}
-                      {fileVideo?.tuozhan?.fileType ? (
-                        <Tag color="blue">{fileVideo?.tuozhan?.fileType}</Tag>
-                      ) : (
-                        '未知'
-                      )}
-                    </Typography.Text>
-                  </Space>
+              <Card
+                style={{ width: '33vw', minWidth: 300, maxWidth: 400 }}
+                cover={
+                  fileVideo?.image ? (
+                    <div style={{ position: 'relative' }}>
+                      <Image
+                        src={fileVideo?.image}
+                        alt="视频封面"
+                        style={{ borderRadius: '8px' }}
+                      />
+                    </div>
+                  ) : (
+                    <FileOutlined style={{ fontSize: 40 }} />
+                  )
                 }
-              />
-            </Card>
+              >
+                <Button
+                  type="primary"
+                  shape="circle"
+                  icon={<DownloadOutlined />}
+                  loading={downloading}
+                  style={{
+                    position: 'absolute',
+                    bottom: 16,
+                    right: 16,
+                    zIndex: 1,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                  }}
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (fileVideo?.tuozhan?.fullPath) {
+                      const url = fileVideo.fileUrl;
+                      const fileName = fileVideo.title || 'video';
+                      if (!url) {
+                        message.error('文件跑不见了~');
+                        return;
+                      }
+                      if (fileVideo?.tuozhan?.size! > 1024 * 1024 * 100) {
+                        // 超过100MB提示
+                        confirmDownload(url, fileName);
+                      } else {
+                        handleDownload(url, fileName);
+                      }
+                    }
+                  }}
+                />
+                {/* 删除按钮 */}
+                {hoverCardId === fileVideo.id && (
+                  <DeleteOutlined
+                    style={{
+                      position: 'absolute',
+                      top: 16,
+                      right: 16,
+                      fontSize: 20,
+                      color: token.colorError,
+                      cursor: 'pointer',
+                      zIndex: 1,
+                      backgroundColor: 'rgba(255,255,255,0.8)',
+                      padding: 8,
+                      borderRadius: '50%',
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteConfirmVisible(true);
+                    }}
+                  />
+                )}
+                <Card.Meta
+                  title={fileVideo?.title}
+                  description={
+                    <Space direction="vertical" style={{ width: '100%' }}>
+                      <Typography.Text>
+                        <strong>时长:</strong>{' '}
+                        {fileVideo?.duration
+                          ? `${formatSeekTimeToCHEN(fileVideo?.duration)}`
+                          : '未知'}
+                      </Typography.Text>
+                      <Typography.Text>
+                        <strong>创建时间:</strong> {fileVideo?.crateTime}
+                      </Typography.Text>
+                      <Typography.Text>
+                        <strong>文件状态:</strong>{' '}
+                        {fileVideo?.file ? (
+                          <Tag icon={<CheckCircleOutlined />} color="success">
+                            已上传
+                          </Tag>
+                        ) : (
+                          '未上传'
+                        )}
+                      </Typography.Text>
+                      <Typography.Text>
+                        <strong>文件大小:</strong> {formatFileSize(fileVideo?.tuozhan?.size || 0)}
+                      </Typography.Text>
+                      <Typography.Text>
+                        <strong>文件路径:</strong>{' '}
+                        {fileVideo?.tuozhan?.fullPath ? (
+                          <Tag color={token.colorPrimaryHover}>{fileVideo?.tuozhan?.fullPath}</Tag>
+                        ) : (
+                          '未知'
+                        )}
+                      </Typography.Text>
+                      <Typography.Text>
+                        <strong>文件类型:</strong>{' '}
+                        {fileVideo?.tuozhan?.fileType ? (
+                          <Tag color={token.colorPrimaryHover}>{fileVideo?.tuozhan?.fileType}</Tag>
+                        ) : (
+                          '未知'
+                        )}
+                      </Typography.Text>
+                    </Space>
+                  }
+                />
+              </Card>
+            </div>
           </Skeleton>
         )}
 
         {uploadProgress > 0 && (
           <Progress percent={uploadProgress} status="active" style={{ marginTop: 6 }} />
         )}
+        {/* 添加确认弹窗 */}
+        <Modal
+          title="确认删除"
+          open={deleteConfirmVisible}
+          onOk={async () => {
+            // 这里调用删除接口
+            const res = await deleteVideo({
+              videoId: fileVideo?.id!,
+            });
+            if (res) {
+              message.success('删除成功!');
+              await handQie(fileVideo?.id || 0);
+              getAnimeData();
+              setDeleteConfirmVisible(false);
+            } else {
+              message.error('删除失败!');
+            }
+          }}
+          onCancel={() => setDeleteConfirmVisible(false)}
+          okText="确认删除"
+          cancelText="取消"
+          okButtonProps={{ danger: true }}
+        >
+          <p>确定要永久删除该视频文件吗？</p>
+          <p style={{ color: token.colorTextSecondary }}>删除后将无法恢复！</p>
+        </Modal>
       </div>
     );
   },

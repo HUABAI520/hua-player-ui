@@ -13,6 +13,7 @@ import { getTypeAll } from '@/services/api/typeController';
 import { useModel } from '@@/exports';
 import {
   BarsOutlined,
+  DeleteOutlined,
   DownOutlined,
   EditOutlined,
   EyeInvisibleOutlined,
@@ -215,6 +216,17 @@ const DongmanList: React.FC = () => {
         // todo 打开系列设置
       },
       icon: <BarsOutlined />,
+    },
+    {
+      type: 'divider',
+    },
+    {
+      label: '删除动漫',
+      key: '5',
+      icon: <DeleteOutlined />,
+      onClick: () => {
+        alert('todo');
+      },
     },
   ];
 

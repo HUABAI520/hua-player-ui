@@ -40,3 +40,26 @@ export const formatSeekTimeToCHEN = (seconds: any) => {
     return `${hours} 小时 ${remainingMinutes} 分钟 ${remainingSeconds} 秒`;
   }
 };
+export const formatSeekTimeToCHEN2 = (seconds: any) => {
+  if (seconds <= 60 * 10) {
+    return {
+      value: seconds,
+      unit: '秒',
+    };
+  } else if (seconds > 60 * 10 && seconds < 60 * 60 * 2) {
+    return {
+      value: Math.floor(seconds / 60),
+      unit: '分钟',
+    };
+  } else if (seconds > 60 * 60 * 2 && seconds < 60 * 60 * 24 * 2) {
+    return {
+      value: Math.floor(seconds / (60 * 60)),
+      unit: '小时',
+    };
+  } else if (seconds > 60 * 60 * 24 * 2) {
+    return {
+      value: Math.floor(seconds / (60 * 60 * 24)),
+      unit: '天',
+    };
+  }
+};

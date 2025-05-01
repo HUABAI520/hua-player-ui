@@ -1,0 +1,66 @@
+<Tabs activeKey={activeTab} onChange={setActiveTab}>
+
+
+        {/* 月度分析 */}
+        <TabPane tab="月度分析" key="2">
+          <Card title="观看时长对比">
+            <ReactECharts option={monthlyCompareChart()} theme="dashboard" />
+          </Card>
+
+          <Row gutter={24} style={{ marginTop: 24 }}>
+            <Col span={12}>
+              <Card title="互动数据分布">
+                <ReactECharts
+                  option={{
+                    xAxis: { data: ['点赞', '收藏', '评论'] },
+                    yAxis: { type: 'value' },
+                    series: [
+                      {
+                        type: 'bar',
+                        data: [
+                          generateData.overview.likeCount,
+                          generateData.overview.collectionCount,
+                          generateData.overview.commentCount,
+                        ],
+                      },
+                    ],
+                  }}
+                  theme="dashboard"
+                />
+              </Card>
+            </Col>
+
+            <Col span={12}>
+              <Card title="类型偏好">
+                <ReactECharts option={typeRadarChart()} theme="dashboard" />
+              </Card>
+            </Col>
+          </Row>
+        </TabPane>
+
+        {/* 周度分析 */}
+        <TabPane tab="周度分析" key="3">
+          <Card title="本周趋势">
+            <ReactECharts
+              option={{
+                tooltip: { trigger: 'axis' },
+                xAxis: { data: generateData.weekly.current.map((d) => d.date) },
+                yAxis: { type: 'value' },
+                series: [
+                  {
+                    type: 'line',
+                    data: generateData.weekly.current.map((d) => d.effectivePlays),
+                    name: '有效播放',
+                  },
+                  {
+                    type: 'bar',
+                    data: generateData.weekly.current.map((d) => d.comments),
+                    name: '评论数',
+                  },
+                ],
+              }}
+              theme="dashboard"
+            />
+          </Card>
+        </TabPane>
+      </Tabs>

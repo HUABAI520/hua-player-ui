@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
-import { theme, Typography, Space, Card, Button } from 'antd';
+import { Button, Card, Space, theme, Typography } from 'antd';
+import React, { useEffect, useRef } from 'react';
 
 const { Title, Paragraph } = Typography;
 
@@ -101,7 +101,7 @@ const Welcome: React.FC = () => {
                 <Title level={2}>{section.title}</Title>
                 <Paragraph style={{ fontSize: 18 }}>{section.content}</Paragraph>
                 {index === sections.length - 1 && (
-                  <Button type="primary" size="large" href="/dongman">
+                  <Button type="primary" size="large" href="/dongman/index">
                     开始探索
                   </Button>
                 )}

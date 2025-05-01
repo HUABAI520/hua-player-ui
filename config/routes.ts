@@ -10,10 +10,17 @@ export default [
   { path: '/welcome', name: '', icon: 'smile', component: './Welcome' },
   // { name: '查询表格', icon: 'table', path: '/list', component: './TableList' },
   { path: '/', redirect: '/welcome' },
-  { path: '/dongman', name: '动漫', icon: 'smile', component: './VideoList/Dongman/DongmanList' },
+  {
+    path: '/dongman/index',
+    name: '动漫',
+    icon: 'smile',
+    component: './Anime',
+  },
+  { path: '/dongman', component: './VideoList/Dongman/DongmanList' },
   { path: '/player', component: './Player/Player' },
   { path: '/record', name: '', component: './VideoList/Record/Record' },
   { path: '/collection', name: '', component: './User/Collection' },
+  { path: '/user/my', name: '', component: './User/My' },
   {
     path: '/manage',
     name: '',

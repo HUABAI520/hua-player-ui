@@ -1,6 +1,7 @@
 import { DetailEditIcon, LanguageIcon } from '@/common/DefinedIcon';
 import InfoDisplay from '@/common/display/InfoDisplay';
 import { AnimeAdOrUp } from '@/common/Edit/AnimeAdOrUp';
+import { VideoEdit } from '@/common/Edit/VideoEdit';
 import { pictureFallback } from '@/common/error';
 import { fetch } from '@/common/utils/DelayUtil';
 import Test2 from '@/pages/Guanli/Test2';
@@ -8,11 +9,11 @@ import UploadArea from '@/pages/Manage/components/UploadArea';
 import { AvatarView } from '@/pages/User/Settings/components/base';
 import {
   addVideo,
+  deleteVideoMsg,
   get,
   getAnimeById,
   list,
-  uploadVideo,
-  uploadVideoPicture,
+  updateVideoSort,
 } from '@/services/api/animeController';
 import { getFileById } from '@/services/api/fileController';
 import { useLocation, useNavigate } from '@@/exports';
@@ -20,8 +21,11 @@ import {
   ClockCircleOutlined,
   CloseCircleOutlined,
   EditOutlined,
+  LoadingOutlined,
   PlayCircleOutlined,
   PlusOutlined,
+  QuestionCircleOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
 import { useModel } from '@umijs/max';
 import {
@@ -40,34 +44,36 @@ import {
   Rate,
   Select,
   SelectProps,
+  Space,
   Spin,
   Tag,
   theme,
   Typography,
   Upload,
-  UploadFile,
 } from 'antd';
 import TextArea from 'antd/es/input/TextArea';
 import Sider from 'antd/es/layout/Sider';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { DndProvider, useDrag, useDrop } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
+import { useDebouncedCallback } from '../User/Collection';
 
 const { Dragger } = Upload;
 const MAX_CHUNK_SIZE = 6 * 1024 * 1024; // 6MB
 const MIN_CHUNK_SIZE = 6 * 1024 * 1024; // 6MB
 const { useToken } = theme;
+
+// 拖拽组件：
+
 const UploadVideo: React.FC = () => {
   const { token } = useToken();
   const { initialState } = useModel('@@initialState');
-  const { settings } = initialState || {};
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const settings = initialState?.settings || {};
   const [open, setOpen] = useState(false);
   const [imgOpen, setImgOpen] = useState(false);
+  // 控制视频集信息修改窗口
+  const [videoEditOpen, setVideoEditOpen] = useState(false);
   const navigate = useNavigate();
-  const [fileList, setFileList] = useState<UploadFile[]>([]);
-  const [blobList, setBlobList] = useState<Blob[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0); // 当前分片索引
-  const [isPaused, setIsPaused] = useState(false); // 是否暂停上传
-  const [isUploading, setIsUploading] = useState(false); // 是否运行上传
   const [fileVideo, setFileVideo] = useState<API.AnimeVideosResp>();
   const [fileVideos, setFileVideos] = useState<API.AnimeVideosResp[]>();
   const [isVideoShow, setIsVideoShow] = useState(false);
@@ -85,6 +91,18 @@ const UploadVideo: React.FC = () => {
   const [type, setType] = useState<1 | 2>(1);
   // 正在添加第几集
   const [episode, setEpisode] = useState<undefined | number>(undefined);
+  // 在 UploadVideo 组件内添加状态
+  // const [videosOrder, setVideosOrder] = useState<API.AnimeVideosResp[]>([]);
+  // 排序结束防止多个请求
+  const [isSorting, setIsSorting] = useState(false);
+  // 初始化原始顺序
+  const originalOrder = useRef<number[] | undefined>([]);
+
+  // 新增 ref 存储最新视频列表
+  const videosRef = useRef<API.AnimeVideosResp[]>();
+  useEffect(() => {
+    videosRef.current = animeMsg?.videos;
+  }, [animeMsg?.videos]);
   const getAnimeData = async () => {
     if (animeId === 0) {
       return;
@@ -110,60 +128,6 @@ const UploadVideo: React.FC = () => {
       return;
     }
   }, [animeId]);
-  // 文件分片函数
-  const splitFile = (file: File): Blob[] => {
-    const chunks: Blob[] = [];
-    const fileSize = file.size;
-    for (let i = 0; i < fileSize; i += MAX_CHUNK_SIZE) {
-      if (i + MIN_CHUNK_SIZE + MAX_CHUNK_SIZE > fileSize) {
-        chunks.push(file.slice(i, fileSize));
-        return chunks;
-      } else chunks.push(file.slice(i, i + MAX_CHUNK_SIZE));
-    }
-    return chunks;
-  };
-
-  // 上传分片函数
-  const uploadChunk = async (chunk: Blob, chunkIndex: number): Promise<void> => {
-    const formData = new FormData();
-    const file = fileList[0].name.split('.', 2);
-    const fileName = file[0];
-    const fileSuffix = '.' + file[1];
-    formData.append('file', chunk, fileName);
-    // 如果 chunk 不是 Blob，手动转换为 Blob
-    const blobChunk = chunk instanceof Blob ? chunk : new Blob([chunk]);
-    // console.log('blobChunk的类型:', typeof blobChunk);
-    formData.append('file', blobChunk, fileName);
-    console.log('animeId', fileVideo?.animeId);
-    console.log('videoId', fileVideo?.id);
-    const res = await uploadVideo(
-      {
-        animeId: fileVideo?.animeId!,
-        videoId: fileVideo?.id!,
-        fileName: fileName,
-        fileSuffix: fileSuffix,
-        partNumber: chunkIndex + 1,
-        total: blobList.length,
-      },
-      formData.get('file') as File,
-    );
-    if (!res || res < 0) {
-      if (res === -1) {
-        message.destroy();
-        message.error('上传出错~ 请点击全部重新上传~');
-        setIsPaused(true);
-        setUploadProgress(0);
-        setCurrentIndex(0);
-      } else {
-        message.error('上传失败');
-      }
-    } else {
-      const progress = (((chunkIndex + 1) * 100) / blobList.length).toFixed(0);
-      // const progressAsNumber = parseFloat(progress); // 将字符串转换回数字
-      setUploadProgress(parseFloat(progress));
-    }
-  };
-
   const updateFileVideos = (res: API.AnimeVideosResp) => {
     const index = fileVideos?.findIndex((item) => item.id === res.id);
     if (index !== undefined && index >= 0) {
@@ -184,11 +148,6 @@ const UploadVideo: React.FC = () => {
     if (!videoId || videoId === 0) {
       return;
     }
-    // const index = fileVideos?.findIndex((item) => item.id === videoId);
-    // if (index !== undefined && index >= 0) {
-    //   setFileVideo(fileVideos?.[index]);
-    //   return;
-    // } else {
     const res = await get({ videoId });
     if (res.file) {
       const file = await getFileById({
@@ -207,198 +166,10 @@ const UploadVideo: React.FC = () => {
       // fileVideos 中有 res 就更新 没有就添加
       updateFileVideos(res);
     }
-
-    // }
-  };
-  // todo 删除掉
-  useEffect(() => {
-    console.log('fileVideos', fileVideos);
-  }, [fileVideos]);
-  // 上传下一个分片
-  const processNextChunk = async () => {
-    if (isPaused || !isUploading) {
-      return;
-    }
-    let i = currentIndex;
-    let s: boolean = isPaused;
-    while (i < blobList.length && !s) {
-      await uploadChunk(blobList[i], i);
-      setIsPaused((prevState) => {
-        s = prevState;
-        return prevState;
-      });
-      i++;
-      setCurrentIndex(i); // 更新当前分片索引
-    }
-
-    if (i === blobList.length) {
-      message.success('上传完成');
-      setIsUploading(false); // 上传完成后停止
-      // 清空缓存
-      // setUploadProgress(0)
-      setCurrentIndex(0);
-      setIsPaused(true);
-      setBlobList([]);
-      setFileList([]);
-      setUploadProgress(0);
-      setTimeout(() => {
-        handQie(fileVideo?.id || 0);
-        getAnimeData();
-      }, 100);
-    }
   };
 
-  // 提取视频分片的第一帧图片的函数
-  const extractFramesFromVideo = async (file: Blob, times: number[]): Promise<string[]> => {
-    return new Promise((resolve, reject) => {
-      const videoElement = document.createElement('video');
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-
-      const url = URL.createObjectURL(file); // 创建视频的临时 URL
-      videoElement.src = url;
-
-      videoElement.addEventListener('loadedmetadata', () => {
-        // 计算视频时长并开始处理
-        const videoDuration = videoElement.duration;
-        const imagePromises = times.map((time) =>
-          extractFrameAtTime(videoElement, canvas, ctx, time, videoDuration),
-        );
-
-        Promise.all(imagePromises)
-          .then((images) => {
-            URL.revokeObjectURL(url); // 清理临时 URL
-            resolve(images); // 返回所有图像数据
-          })
-          .catch((error) => {
-            URL.revokeObjectURL(url);
-            reject(error); // 处理错误
-          });
-      });
-
-      videoElement.addEventListener('error', (error) => {
-        URL.revokeObjectURL(url);
-        reject(error); // 处理错误
-      });
-    });
-  };
-
-  const extractFrameAtTime = (
-    videoElement: HTMLVideoElement,
-    canvas: HTMLCanvasElement,
-    ctx: CanvasRenderingContext2D | null,
-    time: number,
-    videoDuration: number,
-  ): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      if (time > videoDuration) {
-        reject(new Error('指定时间超过视频时长'));
-        return;
-      }
-
-      videoElement.currentTime = time; // 跳转到指定时间
-
-      videoElement.addEventListener(
-        'seeked',
-        () => {
-          // 设置画布的尺寸为视频的尺寸
-          canvas.width = videoElement.videoWidth;
-          canvas.height = videoElement.videoHeight;
-
-          // 将帧绘制到画布上
-          ctx?.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-
-          // 获取图片的 data URL
-          const dataURL = canvas.toDataURL('image/png');
-          resolve(dataURL); // 返回图片数据
-        },
-        { once: true },
-      );
-
-      videoElement.addEventListener('error', (error) => {
-        reject(error); // 处理错误
-      });
-    });
-  };
-
-  const [frames, setFrames] = useState<string[]>();
-
-  const base64ToFile = (base64Data: string, filename: string) => {
-    const [metadata, data] = base64Data.split(',');
-    const mimeString = metadata.split(':')[1].split(';')[0];
-    const binaryString = window.atob(data);
-    const arrayBuffer = new ArrayBuffer(binaryString.length);
-    const uintArray = new Uint8Array(arrayBuffer);
-
-    for (let i = 0; i < binaryString.length; i++) {
-      uintArray[i] = binaryString.charCodeAt(i);
-    }
-
-    return new File([arrayBuffer], filename, { type: mimeString });
-  };
-  const uploadImage = async (file: File) => {
-    const res = await uploadVideoPicture(
-      { animeId: fileVideo?.animeId!, videoId: fileVideo?.id! },
-      file,
-    );
-    if (res) {
-      message.success('上传视频图片成功');
-    } else {
-      message.error('上传失败');
-    }
-  };
-  useEffect(() => {
-    if (frames && frames.length > 0) {
-      // 从 base64 数据中提取并转换为 JPEG 格式的 File 对象
-      const base64Data = frames[0].split(',')[1];
-      const jpegFile = base64ToFile(`data:image/jpeg;base64,${base64Data}`, 'frame.jpg');
-
-      // 上传图像
-      uploadImage(jpegFile);
-    }
-  }, [frames]);
-  // 处理文件上传
-  const handleFileUpload = async (file: any) => {
-    // if (!isUploading) {
-    //   message.error('该集已经有视频无法上传了~');
-    //   return Upload.LIST_IGNORE;
-    // }
-    if (fileList.length !== 0) {
-      message.error('同时只能上传一个视频~');
-      return Upload.LIST_IGNORE;
-    }
-
-    setFileList([...fileList, file]);
-    const chunks = splitFile(file);
-    setBlobList(chunks);
-    setCurrentIndex(0); // 重置索引
-    setIsPaused(false); // 确保上传状态为非暂停
-    setIsUploading(true); // 设置正在上传状态
-
-    const times = [900]; // 要提取的时间点（秒）
-    // 从每个分片中提取第一帧
-    const firstFrameImage = await extractFramesFromVideo(file, times);
-    setFrames(firstFrameImage);
-
-    processNextChunk(); // 开始上传
-  };
-
-  // 切换暂停状态
-  const togglePause = () => {
-    setIsPaused((prev) => !prev);
-  };
-
-  useEffect(() => {
-    if (!isPaused && isUploading) {
-      processNextChunk();
-    }
-  }, [isPaused, isUploading]);
   const cardStyle: React.CSSProperties = {};
 
-  const imgStyle: React.CSSProperties = {
-    display: 'block',
-    width: 273,
-  };
   const tiaojian = (video: API.AnimeVideosResp) => {
     return fileVideo?.id && Number(video.id) === Number(fileVideo?.id);
   };
@@ -484,15 +255,17 @@ const UploadVideo: React.FC = () => {
           body: {
             padding: '5px',
             overflow: 'hidden',
-
+            transition: 'all 0.2s ease-in-out',
             width: '100%',
           },
         }}
         style={{
-          backgroundColor: tiaojian(video) ? '#9bd8f8' : '',
-          border: tiaojian(video) ? `2px solid ${token.colorPrimary}` : '0px solid #3b8dfe',
+          backgroundColor: tiaojian(video) ? token.colorPrimaryBg : '',
+          border: tiaojian(video)
+            ? `2px solid ${token.colorPrimary}`
+            : '0px solid ' + token.colorPrimary,
           marginBottom: '6px',
-          transition: 'all 0.3s ease-in-out',
+          transition: 'all 0.2s ease-in-out',
         }}
         key={video.id}
         onClick={() => {
@@ -531,6 +304,156 @@ const UploadVideo: React.FC = () => {
         </Flex>
       </Card>
     );
+  };
+  const DraggableVideoCard = ({
+    video,
+    index,
+    moveCard,
+    onDragEnd,
+    children,
+  }: {
+    video: API.AnimeVideosResp;
+    index: number;
+    moveCard: (dragIndex: number, hoverIndex: number) => void;
+    onDragEnd: () => void;
+    children: any;
+  }) => {
+    const ref = useRef<HTMLDivElement>(null);
+    const [{ isDragging }, drag] = useDrag({
+      type: 'VIDEO_CARD',
+      item: { index },
+      end: (_, monitor) => {
+        if (monitor.didDrop()) {
+          onDragEnd();
+        }
+      },
+      collect: (monitor) => ({
+        isDragging: monitor.isDragging(),
+      }),
+    });
+
+    const [, drop] = useDrop({
+      accept: 'VIDEO_CARD',
+      hover(item: { index: number }, monitor) {
+        if (!ref.current) return;
+        const dragIndex = item.index;
+        const hoverIndex = index;
+
+        if (dragIndex === hoverIndex) return;
+
+        // 计算鼠标位置
+        const hoverBoundingRect = ref.current?.getBoundingClientRect();
+        const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
+        const clientOffset = monitor.getClientOffset()!;
+        const hoverClientY = clientOffset.y - hoverBoundingRect.top;
+
+        // 只处理垂直方向的移动
+        if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) return;
+        if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) return;
+
+        moveCard(dragIndex, hoverIndex);
+        item.index = hoverIndex;
+      },
+    });
+
+    drag(drop(ref));
+
+    return (
+      <div
+        ref={ref}
+        onContextMenu={(e) => {
+          e.preventDefault(); // 阻止默认上下文菜单
+          e.stopPropagation(); // 阻止事件冒泡
+          setSelectedVideoId(video.id);
+        }}
+        style={{
+          width: '100%',
+          opacity: isDragging ? 0.5 : 1,
+          cursor: 'move',
+          transform: isDragging ? 'scale(1.02)' : 'none',
+          boxShadow: isDragging ? '0 4px 8px rgba(0,0,0,0.2)' : 'none',
+          transition: 'all 0.3s ease',
+          marginBottom: 6,
+        }}
+      >
+        {/*{VideoCard(video)}*/}
+        <Dropdown menu={{ items }} trigger={['contextMenu']}>
+          {children}
+        </Dropdown>
+      </div>
+    );
+  };
+  // 移动卡片逻辑
+  const moveCard = useCallback((dragIndex: number, hoverIndex: number) => {
+    setAnimeMsg((prev) => {
+      if (!prev) return prev;
+      const newVideos = [...prev.videos!];
+      const [removed] = newVideos.splice(dragIndex, 1);
+      newVideos.splice(hoverIndex, 0, removed);
+      return {
+        ...prev,
+        videos: newVideos,
+      };
+    });
+  }, []);
+  // 回复最初排序：
+  const handleResetSort = () => {
+    message.error('排序失败，正在恢复...');
+    const originalItems = originalOrder?.current?.map(
+      (id) => animeMsg?.videos?.find((item) => item.id === id)!,
+    );
+    setAnimeMsg((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        videos: originalItems,
+      };
+    });
+  };
+
+  // 提交排序（示例）
+  const debouncedSortRequest = useDebouncedCallback(async () => {
+    try {
+      const currentVideos = videosRef.current || [];
+      const newOrder = currentVideos.map((item) => item.id!);
+      // 检测是否改变了顺序
+      if (JSON.stringify(newOrder) === JSON.stringify(originalOrder.current)) {
+        return;
+      }
+      const res = await updateVideoSort(
+        {
+          animeId: animeMsg?.id!,
+        },
+        newOrder,
+      );
+      // 设置anime.videos
+      setAnimeMsg((prev) => {
+        if (!prev) return prev;
+        const videos = [...prev.videos!];
+        videos.forEach((item, index) => {
+          item.rank = newOrder.indexOf(item.id!) + 1;
+        });
+        return {
+          ...prev,
+          videos: videos,
+        };
+      });
+      if (res) {
+        message.success('排序成功');
+      } else {
+        handleResetSort();
+      }
+    } catch (error) {
+      handleResetSort();
+    } finally {
+      setIsSorting(false);
+    }
+  }, 500);
+  const handleSortConfirm = async () => {
+    if (isSorting) return;
+    setIsSorting(true);
+    originalOrder.current = animeMsg?.videos?.map((item) => item.id!);
+    debouncedSortRequest();
   };
   const addCard = () => {
     return (
@@ -596,7 +519,42 @@ const UploadVideo: React.FC = () => {
             label: '删除该集',
             key: '1',
             onClick: () => {
-              alert('删除该集 todo,id: ' + selectedVideoId);
+              // 获取该集的信息
+              const fileVideo = animeMsg?.videos?.find((item) => item.id === selectedVideoId);
+              Modal.confirm({
+                title: '确认删除该集？',
+                okText: '确认',
+                cancelText: '取消',
+                content: (
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    删除后无法恢复哦~
+                    <Typography.Text>
+                      <strong>视频标题:</strong> {fileVideo?.title}
+                    </Typography.Text>
+                    <Typography.Text>
+                      <strong>视频集数:</strong> {fileVideo?.rank}
+                    </Typography.Text>
+                  </Space>
+                ),
+                onOk: async () => {
+                  const res = await deleteVideoMsg({
+                    videoId: selectedVideoId,
+                  });
+                  if (res) {
+                    message.success('删除成功');
+                    setAnimeMsg((prev) => {
+                      if (!prev) return prev;
+                      return {
+                        ...prev,
+                        videos: prev.videos?.filter((item) => item.id !== selectedVideoId),
+                      };
+                    });
+                  }
+                },
+                onCancel() {
+                  console.log('Cancel');
+                },
+              });
             },
             icon: <EditOutlined />,
           },
@@ -604,7 +562,7 @@ const UploadVideo: React.FC = () => {
             label: '修改信息',
             key: '2',
             onClick: () => {
-              alert('修改该集 todo,id: ' + selectedVideoId);
+              setVideoEditOpen(true);
             },
             icon: <DetailEditIcon />,
           },
@@ -626,228 +584,269 @@ const UploadVideo: React.FC = () => {
   };
   return (
     <>
-      <Flex vertical={false} style={{ minWidth: '976px' }} className={'shang-anime'}>
-        <Sider
-          width="50%"
-          className="custom-scrollbar2"
-          style={{
-            textAlign: 'center',
-            lineHeight: '120px',
-            color: '#fff',
-            backgroundColor: 'transparent',
-            marginRight: '10px',
-            flex: 1,
-            maxHeight: '85vh',
-            overflowY: 'auto',
-          }}
-        >
-          <Card style={cardStyle} styles={{ body: { padding: 0, overflow: 'hidden' } }}>
-            <Flex
-              vertical
-              justify={'start'}
-              align={'start'}
-              style={{
-                height: type === 1 ? '100%' : '0',
-                transform: `translateX(${type === 1 ? 0 : -100}%)`,
-                // 透明度
-                opacity: type === 1 ? 1 : 0,
-                transition: 'all 0.8s ease-in-out',
-              }}
-            >
-              <Flex gap={'12px'} style={{ width: '100%' }}>
-                <Flex
-                  onClick={() => {
-                    setImgOpen(true);
-                  }}
-                >
-                  <Image
-                    alt={animeMsg?.name}
-                    preview={false}
-                    src={animeMsg?.image}
-                    fallback={pictureFallback}
-                    style={{
-                      cursor: 'pointer',
-                      display: 'block',
-                      width: 273,
-                      borderRadius: '8px',
+      <DndProvider backend={HTML5Backend}>
+        {isSorting && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 16,
+              right: 16,
+              padding: '8px 16px',
+              background: token.colorBgLayout,
+              borderRadius: 4,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              color: token.colorText,
+              zIndex: 1000,
+            }}
+          >
+            <SyncOutlined spin /> 正在保存排序...
+          </div>
+        )}
+        <Flex vertical={false} style={{ minWidth: '976px' }} className={'shang-anime'}>
+          <Sider
+            width="50%"
+            className="custom-scrollbar2"
+            style={{
+              textAlign: 'center',
+              lineHeight: '120px',
+              color: '#fff',
+              backgroundColor: 'transparent',
+              marginRight: '10px',
+              flex: 1,
+              maxHeight: '85vh',
+              overflowY: 'auto',
+            }}
+          >
+            <Card style={cardStyle} styles={{ body: { padding: 0, overflow: 'hidden' } }}>
+              <Flex
+                vertical
+                justify={'start'}
+                align={'start'}
+                style={{
+                  height: type === 1 ? '100%' : '0',
+                  transform: `translateX(${type === 1 ? 0 : -100}%)`,
+                  // 透明度
+                  opacity: type === 1 ? 1 : 0,
+                  transition: 'all 0.8s ease-in-out',
+                }}
+              >
+                <Flex gap={'12px'} style={{ width: '100%' }}>
+                  <Flex
+                    onClick={() => {
+                      setImgOpen(true);
                     }}
-                  />
-                </Flex>
-                <Flex
-                  gap={'12px'}
-                  vertical
-                  align="flex-start"
-                  flex={1}
-                  justify="space-between"
-                  style={{ padding: 16, width: '100%' }}
-                >
-                  {!select ? (
-                    <Typography.Title level={3} onDoubleClick={() => setSelect(true)}>
-                      {animeMsg?.name}
-                    </Typography.Title>
-                  ) : (
-                    <Select
-                      showSearch
-                      value={value}
-                      size={'large'}
+                  >
+                    <Image
+                      alt={animeMsg?.name}
+                      preview={false}
+                      src={animeMsg?.image}
+                      fallback={pictureFallback}
                       style={{
-                        width: 'auto',
-                        fontWeight: 'bold',
-                        fontSize: 24,
-                        padding: '0 5px 0 0',
+                        cursor: 'pointer',
+                        display: 'block',
+                        width: 273,
+                        borderRadius: '8px',
                       }}
-                      defaultActiveFirstOption={false}
-                      suffixIcon={
-                        <Button
-                          size={'small'}
-                          type={'text'}
-                          style={{
-                            cursor: 'pointer',
-                          }}
-                          icon={<CloseCircleOutlined />}
-                          onClick={() => {
-                            setSelect(false);
-                          }}
-                        />
-                      }
-                      filterOption={false}
-                      onSearch={handleSearch}
-                      onChange={handleChange}
-                      notFoundContent={fetching ? <Spin size="small" /> : null}
-                      options={(data || []).map((d) => ({
-                        value: d.value,
-                        label: d.text,
-                      }))}
                     />
-                  )}
-
-                  <Flex>
-                    <Tag color={'default'} bordered={false} icon={<ClockCircleOutlined />}>
-                      {animeMsg?.issueTime?.split('-')[0]}
-                    </Tag>
-                    {animeMsg?.month && (
-                      <Tag color={'default'} bordered={false} icon={<ClockCircleOutlined />}>
-                        {animeMsg?.month + '月'}
-                      </Tag>
-                    )}
-                    <Tag color={'default'} bordered={false} icon={<LanguageIcon />}>
-                      {animeMsg?.language}
-                    </Tag>
                   </Flex>
-                  <Flex gap={'small'} align="center" justify="space-between">
-                    {animeMsg?.score && <Rate disabled defaultValue={animeMsg?.score} />}
-                    <div style={{ color: '#f9ad31', fontWeight: 'bold', fontSize: '20px' }}>
-                      {animeMsg?.score?.toFixed(1)}{' '}
-                    </div>
-                  </Flex>
-                  <InfoDisplay label={'导演：'} value={animeMsg?.director} />
-                  <InfoDisplay
-                    label={'演员：'}
-                    value={animeMsg?.actRole?.join('、')}
-                    useTooltip={true}
-                  />
-                  <InfoDisplay label={'类型：'} value={animeMsg?.kind?.join(' ')} />
-                  <Flex flex={1} align={'end'} style={{ width: '100%' }}>
-                    <Flex justify={'space-between'} align={'center'} style={{ width: '100%' }}>
-                      <Button
-                        type="primary"
-                        onClick={() => {
-                          navigate('/player/?animeId=' + animeMsg?.id);
-                        }}
+                  <Flex
+                    gap={'12px'}
+                    vertical
+                    align="flex-start"
+                    flex={1}
+                    justify="space-between"
+                    style={{ padding: 16, width: '100%' }}
+                  >
+                    {!select ? (
+                      <Typography.Title level={3} onDoubleClick={() => setSelect(true)}>
+                        {animeMsg?.name}
+                      </Typography.Title>
+                    ) : (
+                      <Select
+                        showSearch
+                        value={value}
                         size={'large'}
-                        icon={<PlayCircleOutlined />}
-                        style={{ padding: '24px' }}
-                      >
-                        播放
-                      </Button>
-                      <Button
-                        type="default"
-                        onClick={async () => {
-                          await getAnimeData();
-                          setOpen(true);
+                        style={{
+                          width: 'auto',
+                          fontWeight: 'bold',
+                          fontSize: 24,
+                          padding: '0 5px 0 0',
                         }}
-                        style={{ borderRadius: '20px', padding: '20px' }} // 自定义圆角半径
-                      >
-                        修改
-                      </Button>
+                        defaultActiveFirstOption={false}
+                        suffixIcon={
+                          <Button
+                            size={'small'}
+                            type={'text'}
+                            style={{
+                              cursor: 'pointer',
+                            }}
+                            icon={<CloseCircleOutlined />}
+                            onClick={() => {
+                              setSelect(false);
+                            }}
+                          />
+                        }
+                        filterOption={false}
+                        onSearch={handleSearch}
+                        onChange={handleChange}
+                        notFoundContent={fetching ? <Spin size="small" /> : null}
+                        options={(data || []).map((d) => ({
+                          value: d.value,
+                          label: d.text,
+                        }))}
+                      />
+                    )}
+
+                    <Flex>
+                      <Tag color={'default'} bordered={false} icon={<ClockCircleOutlined />}>
+                        {animeMsg?.issueTime?.split('-')[0]}
+                      </Tag>
+                      {animeMsg?.month && (
+                        <Tag color={'default'} bordered={false} icon={<ClockCircleOutlined />}>
+                          {animeMsg?.month + '月'}
+                        </Tag>
+                      )}
+                      <Tag color={'default'} bordered={false} icon={<LanguageIcon />}>
+                        {animeMsg?.language}
+                      </Tag>
+                    </Flex>
+                    <Flex gap={'small'} align="center" justify="space-between">
+                      {animeMsg?.score && <Rate disabled defaultValue={animeMsg?.score} />}
+                      <div style={{ color: '#f9ad31', fontWeight: 'bold', fontSize: '20px' }}>
+                        {animeMsg?.score?.toFixed(1)}{' '}
+                      </div>
+                    </Flex>
+                    <InfoDisplay label={'导演：'} value={animeMsg?.director} />
+                    <InfoDisplay
+                      label={'演员：'}
+                      value={animeMsg?.actRole?.join('、')}
+                      useTooltip={true}
+                    />
+                    <InfoDisplay label={'类型：'} value={animeMsg?.kind?.join(' ')} />
+                    <Flex flex={1} align={'end'} style={{ width: '100%' }}>
+                      <Flex justify={'space-between'} align={'center'} style={{ width: '100%' }}>
+                        <Button
+                          type="primary"
+                          onClick={() => {
+                            navigate('/player/?animeId=' + animeMsg?.id);
+                          }}
+                          size={'large'}
+                          icon={<PlayCircleOutlined />}
+                          style={{ padding: '24px' }}
+                        >
+                          播放
+                        </Button>
+                        <Button
+                          type="default"
+                          onClick={async () => {
+                            await getAnimeData();
+                            setOpen(true);
+                          }}
+                          style={{ borderRadius: '20px', padding: '20px' }} // 自定义圆角半径
+                        >
+                          修改
+                        </Button>
+                      </Flex>
                     </Flex>
                   </Flex>
                 </Flex>
+                <Button
+                  type="text"
+                  size={'large'}
+                  style={{
+                    padding: '12px',
+                    marginTop: '24px',
+                    fontWeight: 'bold',
+                    color: token.colorPrimaryText,
+                  }}
+                >
+                  简介
+                </Button>
+                <TextArea
+                  value={animeMsg?.intro}
+                  style={{
+                    padding: '0px 12px 6px ',
+                    marginBottom: '16px',
+                    color:
+                      settings && settings.navTheme === 'light' ? 'black' : 'var(--text--white)',
+                  }}
+                  autoSize
+                  disabled
+                  variant="borderless"
+                />
               </Flex>
-              <Button
-                type="text"
-                size={'large'}
+              <Flex
+                vertical
+                justify={'start'}
+                align={'start'}
                 style={{
-                  padding: '12px',
-                  marginTop: '24px',
-                  fontWeight: 'bold',
-                  color: token.colorPrimaryText,
+                  // width: type === 1 ? '100%' : '0',
+                  height: type === 1 ? '0' : '100%',
+                  transform: `translateX(${type === 1 ? 100 : 0}%)`,
+                  // 透明度
+                  opacity: type === 1 ? 0 : 1,
+                  transition: 'all 0.8s ease-in-out',
                 }}
               >
-                简介
-              </Button>
-              <TextArea
-                value={animeMsg?.intro}
-                style={{
-                  padding: '0px 12px 6px ',
-                  marginBottom: '16px',
-                  color: settings && settings.navTheme === 'light' ? 'black' : 'var(--text--white)',
-                }}
-                autoSize
-                disabled
-                variant="borderless"
-              />
-            </Flex>
-            <Flex
-              vertical
-              justify={'start'}
-              align={'start'}
+                {/*todo 选择文件夹快速添加*/}
+                <Test2 />
+              </Flex>
+            </Card>
+          </Sider>
+          <Spin indicator={<LoadingOutlined spin />} spinning={isSorting} tip={'正在保存排序~'}>
+            <Sider
               style={{
-                // width: type === 1 ? '100%' : '0',
-                height: type === 1 ? '0' : '100%',
-                transform: `translateX(${type === 1 ? 100 : 0}%)`,
-                // 透明度
-                opacity: type === 1 ? 0 : 1,
-                transition: 'all 0.8s ease-in-out',
+                textAlign: 'center',
+                lineHeight: '120px',
+                color: '#fff',
+                // backgroundColor: '#e4c3de',
+                // backgroundColor: '#f5f5f5',
+                backgroundColor: token.colorBgLayout,
+                flex: 1,
+                maxHeight: '85vh',
+                overflowY: 'auto',
               }}
+              className="custom-scrollbar"
             >
-              {/*todo 选择文件夹快速添加*/}
-              <Test2 />
-            </Flex>
-          </Card>
-        </Sider>
-        <Sider
-          style={{
-            textAlign: 'center',
-            lineHeight: '120px',
-            color: '#fff',
-            // backgroundColor: '#e4c3de',
-            // backgroundColor: '#f5f5f5',
-            backgroundColor: token.colorBgLayout,
-            flex: 1,
-            maxHeight: '85vh',
-            overflowY: 'auto',
-          }}
-          className="custom-scrollbar"
-        >
-          {animeMsg?.videos?.map((video, index) => Menu(video.id!, VideoCard(video)))}
-          {Menu(-1, addCard())}
-        </Sider>
-        {fileVideos?.map((item, index) => (
-          <UploadArea
-            key={item.id}
-            fileVideo={item}
-            setFileVideo={(value) => {
-              // setFileVideo(value);
-              updateFileVideos(value);
-            }}
-            isVisible={fileVideo?.id === item.id} // 控制可见性
-            getAnimeData={getAnimeData}
-          />
-        ))}
-        {/*<UploadArea fileVideo={fileVideo} setFileVideo={setFileVideo} getAnimeData={getAnimeData} />*/}
-      </Flex>
-
+              {animeMsg?.videos?.map((video, index) => (
+                <div>
+                  <DraggableVideoCard
+                    key={video.id}
+                    video={video}
+                    index={index}
+                    moveCard={moveCard}
+                    onDragEnd={handleSortConfirm}
+                  >
+                    {VideoCard(video)}
+                  </DraggableVideoCard>
+                </div>
+              ))}
+              {/*{Menu(-1, addCard())}*/}
+              <div onContextMenu={() => setSelectedVideoId(-1)}>
+                <Dropdown menu={{ items }} trigger={['contextMenu']}>
+                  {addCard()}
+                </Dropdown>
+              </div>
+            </Sider>
+          </Spin>
+          {fileVideos?.map((item, index) => {
+            console.log('爽顺序：', index);
+            return (
+              <UploadArea
+                key={item.id}
+                fileVideo={item}
+                setFileVideo={(value) => {
+                  // setFileVideo(value);
+                  updateFileVideos(value);
+                }}
+                isVisible={fileVideo?.id === item.id} // 控制可见性
+                getAnimeData={getAnimeData}
+              />
+            );
+          })}
+          {/*<UploadArea fileVideo={fileVideo} setFileVideo={setFileVideo} getAnimeData={getAnimeData} />*/}
+        </Flex>
+      </DndProvider>
       <Modal
         title={'范围添加集数'}
         open={isVideoFanShow}
@@ -1002,17 +1001,36 @@ const UploadVideo: React.FC = () => {
           onCancel={() => setImgOpen(false)}
         />
       </Modal>
-      <FloatButton
-        description={
-          <span style={{ color: token.colorPrimaryText }}>
-            {type === 1 ? '直接添加' : '快速添加'}
-          </span>
-        }
-        shape="square"
-        style={{ insetInlineEnd: 108 }}
-        onClick={() => {
-          setType(type === 1 ? 2 : 1);
+      <Modal
+        title={'修改该集信息'}
+        width={600}
+        onCancel={() => {
+          setVideoEditOpen(false);
         }}
+        cancelText={'完成'}
+        open={videoEditOpen}
+        style={{ padding: '16px' }}
+        footer={null}
+        destroyOnClose
+      >
+        <Form>
+          <VideoEdit
+            video={animeMsg?.videos?.find((item) => item.id === selectedVideoId)}
+            reload={getAnimeData}
+            onCancel={() => {
+              setVideoEditOpen(false);
+            }}
+          />
+        </Form>
+      </Modal>
+      <FloatButton
+        shape="circle"
+        style={{ insetInlineEnd: 108 }}
+        icon={<QuestionCircleOutlined style={{ color: token.colorPrimary }} />}
+        tooltip={<span>右键双击集数卡片进行操作~</span>}
+        // onClick={() => {
+        //   setType(type === 1 ? 2 : 1);
+        // }}
       />
     </>
   );

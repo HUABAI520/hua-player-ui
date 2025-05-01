@@ -273,7 +273,9 @@ declare namespace API {
     userAccount?: string;
     userPassword?: string;
   };
-
+  type deleteVideoMsgParams = {
+    videoId: number;
+  };
   type UserVO = {
     id?: number;
     username?: string;
@@ -705,5 +707,89 @@ declare namespace API {
   };
   type listParams = {
     id: number;
+  };
+
+  type getBetweenFeaturesParams = {
+    startDate: string;
+    endDate: string;
+  };
+  type getMonthlyFeaturesParams = {
+    monthStartDate: string;
+  };
+  type getWeeklyFeaturesParams = {
+    weekStartDate: string;
+  };
+  type WeeklyUserFeatures = {
+    weekStartDate?: string;
+    userId?: number;
+    totalWatchDuration?: number;
+    commentCount?: number;
+    commentsPerHour?: number;
+    collectionCount?: number;
+    likeCount?: number;
+    effectivePlayCount?: number;
+    activeDays?: number;
+    avgDailyActivities?: number;
+    topType?: string;
+    activePeriod?: string;
+    sentimentLabel?: string;
+    avgSentiment?: number;
+  };
+
+  type MonthlyUserFeatures = {
+    monthStartDate?: string;
+    userId?: number;
+    totalWatchDuration?: number;
+    commentCount?: number;
+    commentsPerHour?: number;
+    collectionCount?: number;
+    likeCount?: number;
+    effectivePlayCount?: number;
+    activeDays?: number;
+    avgDailyActivities?: number;
+    topType?: string;
+    activePeriod?: string;
+    sentimentLabel?: string;
+    avgSentiment?: number;
+  };
+  type DailyUserFeatures = {
+    activityDate?: string;
+    userId?: number;
+    totalWatchDuration?: number;
+    commentCount?: number;
+    commentsPerHour?: number;
+    collectionCount?: number;
+    likeCount?: number;
+    effectivePlayCount?: number;
+    activeDays?: number;
+    avgDailyActivities?: number;
+    topType?: string;
+    activePeriod?: string;
+    sentimentLabel?: string;
+    avgSentiment?: number;
+  };
+  type DailyUserFeatureCount = {
+    avgDailyActivities?: number;
+    activityDate?: string;
+  };
+  type UserFeatures = {
+    userId?: number;
+    activeDays?: number;
+    avgDailyActivities?: number;
+    totalWatchDuration?: number;
+    commentCount?: number;
+    commentsPerHour?: number;
+    collectionCount?: number;
+    likeCount?: number;
+    effectivePlayCount?: number;
+    topType?: string;
+    top10Types?: string;
+    activePeriod?: string;
+    avgSentiment?: number;
+    sentimentLabel?: string;
+  };
+  type getHotRecommendationParams = {
+    pageNum: number;
+    pageSize: number;
   };
 }
