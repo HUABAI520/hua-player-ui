@@ -78,6 +78,9 @@
     "react-qr-reader": "^2.2.1",
     "react-to-print": "^2.14.15",
     "react-transition-group": "^4.4.5",
+    "echarts": "^5.6.0",
+    "react-countup": "^6.5.3",
+    "echarts-for-react": "^3.0.2",
     "umi-request": "^1.4.0"
   },
   "devDependencies": {

@@ -9,7 +9,6 @@ import { Badge, Flex, Tabs, theme } from 'antd';
 
 import * as echarts from 'echarts';
 import { useEffect, useState } from 'react';
-
 // 模拟数据生成
 
 // 图表主题配置
@@ -78,6 +77,7 @@ const Dashboard = () => {
       {items.map((item) => {
         //是对应的才展示
         if (item.key === activeTab) {
+          // eslint-disable-next-line react/jsx-key
           return <div style={{}}>{item.children}</div>;
         } else {
           return null;
