@@ -4,8 +4,9 @@ import { AnimeAdOrUp } from '@/common/Edit/AnimeAdOrUp';
 import { VideoEdit } from '@/common/Edit/VideoEdit';
 import { pictureFallback } from '@/common/error';
 import { fetch } from '@/common/utils/DelayUtil';
-import Test3 from '@/pages/Guanli/Test3';
+import Test2 from '@/pages/Guanli/Test2';
 import UploadArea from '@/pages/Manage/components/UploadArea';
+import { useDebouncedCallback } from '@/pages/User/Collection';
 import { AvatarView } from '@/pages/User/Settings/components/base';
 import {
   addVideo,
@@ -25,6 +26,7 @@ import {
   LoadingOutlined,
   PlayCircleOutlined,
   PlusOutlined,
+  QuestionCircleOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
 import { useModel } from '@umijs/max';
@@ -56,22 +58,17 @@ import Sider from 'antd/es/layout/Sider';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { useDebouncedCallback } from '../User/Collection';
 
 const { Dragger } = Upload;
 const MAX_CHUNK_SIZE = 6 * 1024 * 1024; // 6MB
 const MIN_CHUNK_SIZE = 6 * 1024 * 1024; // 6MB
-const { useToken } = theme;
 
-// 拖拽组件：
-
-const UploadVideo: React.FC = () => {
-  const { token } = useToken();
+const TestPage: React.FC = () => {
+  const { token } = theme.useToken();
   const { initialState } = useModel('@@initialState');
   const settings = initialState?.settings || {};
   const [open, setOpen] = useState(false);
   const [imgOpen, setImgOpen] = useState(false);
-  // 控制视频集信息修改窗口
   const [videoEditOpen, setVideoEditOpen] = useState(false);
   const navigate = useNavigate();
   const [fileVideo, setFileVideo] = useState<API.AnimeVideosResp>();
@@ -83,46 +80,34 @@ const UploadVideo: React.FC = () => {
   const animeIdP = queryParams.get('animeId');
   const [animeId, setAnimeId] = useState(Number(animeIdP));
   const [videoForm, setVideoForm] = useState<API.AnimeVideosReq>();
-  const [autoAdd, setAutoAdd] = useState(false);
   const [animeMsg, setAnimeMsg] = useState<API.AnimeIndexResp>();
   const [data, setData] = useState<SelectProps['options']>([]);
   const [value, setValue] = useState<string | undefined>();
   const [fetching, setFetching] = useState(false);
   const [select, setSelect] = useState(false);
-
-  // 正在添加第几集
-  const [episode, setEpisode] = useState<undefined | number>(undefined);
-  // 在 UploadVideo 组件内添加状态
-  // const [videosOrder, setVideosOrder] = useState<API.AnimeVideosResp[]>([]);
-  // 排序结束防止多个请求
+  const [type, setType] = useState<1 | 2>(1);
+  const [episode, setEpisode] = useState<number | undefined>(undefined);
   const [isSorting, setIsSorting] = useState(false);
-  // 初始化原始顺序
-  const originalOrder = useRef<number[] | undefined>([]);
-  const [openFloat, setOpenFloat] = useState<boolean>(false);
-  const [openFloat2, setOpenFloat2] = useState<boolean>(false);
-  // 删除模式下的选择器
+  const [selectedVideoId, setSelectedVideoId] = useState<any>();
   const [selectedVideoIds, setSelectedVideoIds] = useState<number[]>([]);
-  // 三种模式
+  // 新增模式状态：选择模式、修改模式、删除模式
   const [mode, setMode] = useState<'select' | 'edit' | 'delete'>('select');
-  const [mode2, setMode2] = useState<'rengong' | 'auto'>('rengong');
-  const modeMap2: Record<'rengong' | 'auto', string> = {
-    rengong: '手动模式',
-    auto: '自动模式',
-  };
   const modeMap: Record<'select' | 'edit' | 'delete', string> = {
     select: '选择模式',
     edit: '编辑模式',
     delete: '删除模式',
   };
   const modeName = modeMap[mode]; //
-  const modeName2 = modeMap2[mode2];
+  const originalOrder = useRef<number[] | undefined>([]);
+  const videosRef = useRef<API.AnimeVideosResp[]>();
+
   // 模式切换处理
   const handleModeChange = (newMode: 'select' | 'edit' | 'delete') => {
     setMode(newMode);
+    setSelectedVideoIds([]); // 切换模式时清空选择
   };
-  const handleModeChange2 = (newMode: 'rengong' | 'auto') => {
-    setMode2(newMode);
-  };
+
+  // 批量删除处理
   const handleBatchDelete = () => {
     if (selectedVideoIds.length === 0) {
       return message.warning('请先选择要删除的剧集');
@@ -160,76 +145,8 @@ const UploadVideo: React.FC = () => {
       },
     });
   };
-  // 新增 ref 存储最新视频列表
-  const videosRef = useRef<API.AnimeVideosResp[]>();
-  useEffect(() => {
-    videosRef.current = animeMsg?.videos;
-  }, [animeMsg?.videos]);
-  const getAnimeData = async () => {
-    if (animeId === 0) {
-      return;
-    }
-    const res = await getAnimeById({ id: animeId });
-    if (res) {
-      // 将状态和 id 设置到浏览器的url 后面
-      const currentUrl = new URL(window.location.href, window.location.origin);
-      // 获取当前查询参数的迭代器
-      const searchParams = new URLSearchParams(currentUrl.search);
-      searchParams.set('animeId', String(res.id));
-      currentUrl.search = searchParams.toString();
-      history.pushState({}, '', currentUrl.toString());
-      setAnimeMsg(res);
-      setValue(res.name);
-      return res;
-    }
-  };
-  useEffect(() => {
-    if (animeId != null && animeId !== 0) {
-      getAnimeData();
-    } else if (animeId === 0) {
-      navigate('/404');
-      return;
-    }
-  }, [animeId]);
-  const updateFileVideos = (res: API.AnimeVideosResp) => {
-    const index = fileVideos?.findIndex((item) => item.id === res.id);
-    if (index !== undefined && index >= 0) {
-      // 更新对应索引的数据
-      setFileVideos((prevState) => {
-        return prevState?.map((item, i) => (i === index ? res : item));
-      });
-    } else {
-      // 如果没有找到，添加新的数据
-      setFileVideos((prevArray) => {
-        const p = prevArray || [];
-        // 使用 concat 创建新数组
-        return p.concat(res);
-      });
-    }
-  };
-  const handQie = async (videoId: number | undefined) => {
-    if (!videoId || videoId === 0) {
-      return;
-    }
-    const res = await get({ videoId });
-    if (res?.file) {
-      const file = await getFileById({
-        fileId: res?.file,
-      });
-      setFileVideo({
-        ...res,
-        tuozhan: file,
-      });
-      updateFileVideos({
-        ...res,
-        tuozhan: file,
-      });
-    } else {
-      setFileVideo(res);
-      // fileVideos 中有 res 就更新 没有就添加
-      updateFileVideos(res);
-    }
-  };
+
+  // 选择状态切换
   const toggleVideoSelection = (videoId: number, e?: React.MouseEvent) => {
     // 在删除模式下才处理选择状态
     if (mode === 'delete') {
@@ -240,42 +157,97 @@ const UploadVideo: React.FC = () => {
     }
   };
 
-  const cardStyle: React.CSSProperties = {};
+  useEffect(() => {
+    videosRef.current = animeMsg?.videos;
+  }, [animeMsg?.videos]);
+
+  const getAnimeData = async () => {
+    if (animeId === 0) return;
+
+    const res = await getAnimeById({ id: animeId });
+    if (res) {
+      const currentUrl = new URL(window.location.href, window.location.origin);
+      const searchParams = new URLSearchParams(currentUrl.search);
+      searchParams.set('animeId', String(res.id));
+      currentUrl.search = searchParams.toString();
+      history.pushState({}, '', currentUrl.toString());
+
+      setAnimeMsg(res);
+      setValue(res.name);
+    }
+  };
+
+  useEffect(() => {
+    if (animeId != null && animeId !== 0) {
+      getAnimeData();
+    } else if (animeId === 0) {
+      navigate('/404');
+    }
+  }, [animeId]);
+
+  const updateFileVideos = (res: API.AnimeVideosResp) => {
+    const index = fileVideos?.findIndex((item) => item.id === res.id);
+    if (index !== undefined && index >= 0) {
+      setFileVideos((prevState) => prevState?.map((item, i) => (i === index ? res : item)));
+    } else {
+      setFileVideos((prevArray) => {
+        const p = prevArray || [];
+        return p.concat(res);
+      });
+    }
+  };
+
+  const handQie = async (videoId: number | undefined) => {
+    if (!videoId || videoId === 0) return;
+
+    const res = await get({ videoId });
+    if (res?.file) {
+      const file = await getFileById({ fileId: res.file });
+      setFileVideo({ ...res, tuozhan: file });
+      updateFileVideos({ ...res, tuozhan: file });
+    } else {
+      setFileVideo(res);
+      updateFileVideos(res);
+    }
+  };
 
   const tiaojian = (video: API.AnimeVideosResp) => {
-    return fileVideo?.id && Number(video.id) === Number(fileVideo?.id) && mode !== 'delete';
+    return fileVideo?.id && Number(video.id) === Number(fileVideo?.id);
   };
 
   const [form] = Form.useForm();
   const [formFan] = Form.useForm();
+
   useEffect(() => {
-    // 每次 videoForm 发生变化时，重置表单字段值
     form.setFieldsValue(videoForm);
   }, [videoForm]);
+
   const handleOk = async () => {
     try {
       const values = await form.validateFields();
       let p = true;
+
       animeMsg?.videos?.forEach((video) => {
-        if (video.rank === values.rank) {
-          p = false;
-        }
+        if (video.rank === values.rank) p = false;
       });
+
       if (!p) {
         message.error('该集已经存在~');
         return;
       }
+
       if (animeMsg?.videos) await addVideo(values);
       message.success('添加成功~');
+
       getAnimeData();
       setVideoForm(undefined);
       setIsVideoShow(false);
       form.setFieldsValue({});
-      // onSubmit(values);
     } catch (errorInfo) {
       console.error('Validation Failed:', errorInfo);
     }
   };
+
   const addFan = async (start: number, end: number) => {
     for (let i = start; i <= end; i++) {
       setEpisode(i);
@@ -288,10 +260,12 @@ const UploadVideo: React.FC = () => {
     }
     message.success('全部添加成功~');
   };
+
   const handleOkFan = async () => {
     const values = await formFan.validateFields();
     const start = Number(values.rankStart);
     const end = Number(values.rankEnd);
+
     try {
       await addFan(start, end);
       setIsVideoFanShow(false);
@@ -316,21 +290,19 @@ const UploadVideo: React.FC = () => {
   };
 
   const handleChange = (newValue: string) => {
-    // setValue(newValue);
     setAnimeId(Number(newValue));
   };
+
+  // 视频卡片组件，根据不同模式展示不同效果
   const VideoCard = (video: API.AnimeVideosResp) => {
     const isSelected = mode === 'delete' && selectedVideoIds.includes(video.id!);
+    const isActive = fileVideo?.id === video.id;
 
     const handleCardClick = () => {
       if (mode === 'edit') {
-        // 编辑模式：切换后打开编辑弹窗
-        handQie(video.id || 0).then(() => {
-          setTimeout(() => {
-            setSelectedVideoId(video.id!);
-            setVideoEditOpen(true);
-          }, 50);
-        });
+        // 编辑模式：打开编辑弹窗
+        setSelectedVideoId(video.id!);
+        setVideoEditOpen(true);
       } else if (mode === 'delete') {
         // 删除模式：切换选择状态
         toggleVideoSelection(video.id!);
@@ -341,6 +313,7 @@ const UploadVideo: React.FC = () => {
         }
       }
     };
+
     return (
       <Card
         hoverable
@@ -353,12 +326,8 @@ const UploadVideo: React.FC = () => {
           },
         }}
         style={{
-          backgroundColor: tiaojian(video)
-            ? token.colorPrimaryBg
-            : isSelected
-            ? token.colorErrorBgActive
-            : '',
-          border: tiaojian(video)
+          backgroundColor: isActive ? token.colorPrimaryBg : isSelected ? '#fff4f4' : '',
+          border: isActive
             ? `2px solid ${token.colorPrimary}`
             : isSelected
             ? `2px solid ${token.colorError}`
@@ -380,7 +349,7 @@ const UploadVideo: React.FC = () => {
           >
             第 {video?.rank} 集
           </Typography.Text>
-          {/*循环 animeMsg.videos*/}
+
           <Flex align="start" justify="space-between" style={{ width: '100%' }}>
             <Typography.Title level={5} style={{ margin: 0 }}>
               {video?.title}
@@ -394,6 +363,7 @@ const UploadVideo: React.FC = () => {
               )}
             </Typography.Title>
           </Flex>
+
           {/* 模式指示器 */}
           {mode === 'delete' && isSelected && (
             <div style={{ position: 'absolute', top: 5, right: 5 }}>
@@ -409,18 +379,17 @@ const UploadVideo: React.FC = () => {
       </Card>
     );
   };
+
   const DraggableVideoCard = ({
     video,
     index,
     moveCard,
     onDragEnd,
-    children,
   }: {
     video: API.AnimeVideosResp;
     index: number;
     moveCard: (dragIndex: number, hoverIndex: number) => void;
     onDragEnd: () => void;
-    children: any;
   }) => {
     const ref = useRef<HTMLDivElement>(null);
     const [{ isDragging }, drag] = useDrag({
@@ -445,13 +414,11 @@ const UploadVideo: React.FC = () => {
 
         if (dragIndex === hoverIndex) return;
 
-        // 计算鼠标位置
         const hoverBoundingRect = ref.current?.getBoundingClientRect();
         const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
         const clientOffset = monitor.getClientOffset()!;
         const hoverClientY = clientOffset.y - hoverBoundingRect.top;
 
-        // 只处理垂直方向的移动
         if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) return;
         if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) return;
 
@@ -466,41 +433,41 @@ const UploadVideo: React.FC = () => {
       <div
         ref={ref}
         onContextMenu={(e) => {
-          e.preventDefault(); // 阻止默认上下文菜单
-          e.stopPropagation(); // 阻止事件冒泡
+          e.preventDefault();
+          e.stopPropagation();
           setSelectedVideoId(video.id);
         }}
         style={{
           width: '100%',
           opacity: isDragging ? 0.5 : 1,
-          cursor: 'move',
+          cursor: mode === 'select' ? 'move' : 'pointer',
           transform: isDragging ? 'scale(1.02)' : 'none',
           boxShadow: isDragging ? '0 4px 8px rgba(0,0,0,0.2)' : 'none',
           transition: 'all 0.3s ease',
           marginBottom: 6,
         }}
       >
-        {/*{VideoCard(video)}*/}
-        <Dropdown menu={{ items }} trigger={['contextMenu']}>
-          {children}
+        <Dropdown
+          menu={{ items }}
+          trigger={['contextMenu']}
+          disabled={mode !== 'select'} // 只有选择模式启用右键菜单
+        >
+          {VideoCard(video)}
         </Dropdown>
       </div>
     );
   };
-  // 移动卡片逻辑
+
   const moveCard = useCallback((dragIndex: number, hoverIndex: number) => {
     setAnimeMsg((prev) => {
       if (!prev) return prev;
       const newVideos = [...prev.videos!];
       const [removed] = newVideos.splice(dragIndex, 1);
       newVideos.splice(hoverIndex, 0, removed);
-      return {
-        ...prev,
-        videos: newVideos,
-      };
+      return { ...prev, videos: newVideos };
     });
   }, []);
-  // 回复最初排序：
+
   const handleResetSort = () => {
     message.error('排序失败，正在恢复...');
     const originalItems = originalOrder?.current?.map(
@@ -508,40 +475,28 @@ const UploadVideo: React.FC = () => {
     );
     setAnimeMsg((prev) => {
       if (!prev) return prev;
-      return {
-        ...prev,
-        videos: originalItems,
-      };
+      return { ...prev, videos: originalItems };
     });
   };
 
-  // 提交排序（示例）
   const debouncedSortRequest = useDebouncedCallback(async () => {
     try {
       const currentVideos = videosRef.current || [];
       const newOrder = currentVideos.map((item) => item.id!);
-      // 检测是否改变了顺序
-      if (JSON.stringify(newOrder) === JSON.stringify(originalOrder.current)) {
-        return;
-      }
-      const res = await updateVideoSort(
-        {
-          animeId: animeMsg?.id!,
-        },
-        newOrder,
-      );
-      // 设置anime.videos
+
+      if (JSON.stringify(newOrder) === JSON.stringify(originalOrder.current)) return;
+
+      const res = await updateVideoSort({ animeId: animeMsg?.id! }, newOrder);
+
       setAnimeMsg((prev) => {
         if (!prev) return prev;
         const videos = [...prev.videos!];
         videos.forEach((item, index) => {
           item.rank = newOrder.indexOf(item.id!) + 1;
         });
-        return {
-          ...prev,
-          videos: videos,
-        };
+        return { ...prev, videos };
       });
+
       if (res) {
         message.success('排序成功');
       } else {
@@ -553,12 +508,14 @@ const UploadVideo: React.FC = () => {
       setIsSorting(false);
     }
   }, 500);
+
   const handleSortConfirm = async () => {
     if (isSorting) return;
     setIsSorting(true);
     originalOrder.current = animeMsg?.videos?.map((item) => item.id!);
     debouncedSortRequest();
   };
+
   const addCard = () => {
     return (
       <Card
@@ -574,16 +531,14 @@ const UploadVideo: React.FC = () => {
           marginBottom: '6px',
         }}
         onClick={() => {
-          mode2 === 'rengong'
-            ? setTimeout(() => {
-                setVideoForm({
-                  animeId: animeId,
-                  rank: animeMsg?.videos?.length! + 1,
-                  title: '第' + (animeMsg?.videos?.length! + 1) + '集',
-                });
-                setIsVideoShow(true);
-              }, 50)
-            : setAutoAdd(true);
+          setTimeout(() => {
+            setVideoForm({
+              animeId: animeId,
+              rank: animeMsg?.videos?.length! + 1,
+              title: '第' + (animeMsg?.videos?.length! + 1) + '集',
+            });
+            setIsVideoShow(true);
+          }, 50);
         }}
       >
         <Flex vertical align="start" justify="center">
@@ -595,11 +550,8 @@ const UploadVideo: React.FC = () => {
               fontWeight: 'bold',
             }}
           >
-            {mode2 === 'rengong'
-              ? '第' + ((animeMsg?.videos?.length || 0) + 1) + '集视频？'
-              : '上传文件批量添加'}
+            {'第' + ((animeMsg?.videos?.length || 0) + 1) + '集视频？'}
           </Typography.Text>
-          {/*循环 animeMsg.videos*/}
           <Flex align="end" justify="center" style={{ width: '100%' }}>
             <Typography.Title level={5} style={{ margin: 0 }}>
               <PlusOutlined size={50} />
@@ -609,16 +561,14 @@ const UploadVideo: React.FC = () => {
       </Card>
     );
   };
-  const [selectedVideoId, setSelectedVideoId] = useState<any>();
+
   const items: MenuProps['items'] =
     selectedVideoId === -1
       ? [
           {
             label: '范围新增集',
             key: '2',
-            onClick: () => {
-              setIsVideoFanShow(true);
-            },
+            onClick: () => setIsVideoFanShow(true),
             icon: <DetailEditIcon />,
           },
         ]
@@ -627,7 +577,6 @@ const UploadVideo: React.FC = () => {
             label: '删除该集',
             key: '1',
             onClick: () => {
-              // 获取该集的信息
               const fileVideo = animeMsg?.videos?.find((item) => item.id === selectedVideoId);
               Modal.confirm({
                 title: '确认删除该集？',
@@ -645,9 +594,7 @@ const UploadVideo: React.FC = () => {
                   </Space>
                 ),
                 onOk: async () => {
-                  const res = await deleteVideoMsg({
-                    videoId: selectedVideoId,
-                  });
+                  const res = await deleteVideoMsg({ videoId: selectedVideoId });
                   if (res) {
                     message.success('删除成功');
                     setAnimeMsg((prev) => {
@@ -659,37 +606,74 @@ const UploadVideo: React.FC = () => {
                     });
                   }
                 },
-                onCancel() {
-                  console.log('Cancel');
-                },
               });
             },
-            icon: <EditOutlined />,
+            icon: <DeleteOutlined />,
           },
           {
             label: '修改信息',
             key: '2',
-            onClick: () => {
-              setVideoEditOpen(true);
-            },
+            onClick: () => setVideoEditOpen(true),
             icon: <DetailEditIcon />,
           },
         ];
 
-  const Menu = (videoId: number, children: any) => {
-    return (
-      <div
-        style={{ width: '100%' }}
-        onContextMenu={() => {
-          setSelectedVideoId(videoId);
-        }}
-      >
-        <Dropdown menu={{ items }} trigger={['contextMenu']}>
-          {children}
-        </Dropdown>
-      </div>
-    );
-  };
+  // 模式切换工具栏组件
+  const ModeToolbar = () => (
+    <Card
+      style={{ marginBottom: 16, background: token.colorBgContainer }}
+      bodyStyle={{ padding: '8px 16px' }}
+    >
+      <Flex justify="space-between" align="center">
+        <Typography.Title level={5} style={{ margin: 0 }}>
+          剧集管理
+        </Typography.Title>
+        <Space>
+          <Button
+            type={mode === 'select' ? 'primary' : 'default'}
+            onClick={() => handleModeChange('select')}
+            icon={<PlayCircleOutlined />}
+          >
+            选择模式
+          </Button>
+          <Button
+            type={mode === 'edit' ? 'primary' : 'default'}
+            onClick={() => handleModeChange('edit')}
+            icon={<EditOutlined />}
+          >
+            修改模式
+          </Button>
+          <Button
+            type={mode === 'delete' ? 'primary' : 'default'}
+            danger={mode === 'delete'}
+            onClick={() => handleModeChange('delete')}
+            icon={<DeleteOutlined />}
+          >
+            删除模式
+            {mode === 'delete' && selectedVideoIds.length > 0 && (
+              <span
+                style={{
+                  marginLeft: 8,
+                  background: '#fff',
+                  color: '#f5222d',
+                  padding: '0 6px',
+                  borderRadius: 12,
+                }}
+              >
+                {selectedVideoIds.length}
+              </span>
+            )}
+          </Button>
+          {mode === 'delete' && selectedVideoIds.length > 0 && (
+            <Button danger onClick={handleBatchDelete} icon={<DeleteOutlined />}>
+              批量删除
+            </Button>
+          )}
+        </Space>
+      </Flex>
+    </Card>
+  );
+
   return (
     <>
       <DndProvider backend={HTML5Backend}>
@@ -710,13 +694,13 @@ const UploadVideo: React.FC = () => {
             <SyncOutlined spin /> 正在保存排序...
           </div>
         )}
+
         <Flex vertical={false} style={{ minWidth: '976px' }} className={'shang-anime'}>
           <Sider
             width="50%"
             className="custom-scrollbar2"
             style={{
               textAlign: 'center',
-              lineHeight: '120px',
               color: '#fff',
               backgroundColor: 'transparent',
               marginRight: '10px',
@@ -725,24 +709,20 @@ const UploadVideo: React.FC = () => {
               overflowY: 'auto',
             }}
           >
-            <Card style={cardStyle} styles={{ body: { padding: 0, overflow: 'hidden' } }}>
+            <Card styles={{ body: { padding: 0, overflow: 'hidden' } }}>
               <Flex
                 vertical
                 justify={'start'}
                 align={'start'}
                 style={{
-                  height: '100%',
-                  // 透明度
-                  opacity: 1,
+                  height: type === 1 ? '100%' : '0',
+                  transform: `translateX(${type === 1 ? 0 : -100}%)`,
+                  opacity: type === 1 ? 1 : 0,
                   transition: 'all 0.8s ease-in-out',
                 }}
               >
                 <Flex gap={'12px'} style={{ width: '100%' }}>
-                  <Flex
-                    onClick={() => {
-                      setImgOpen(true);
-                    }}
-                  >
+                  <Flex onClick={() => setImgOpen(true)}>
                     <Image
                       alt={animeMsg?.name}
                       preview={false}
@@ -784,13 +764,8 @@ const UploadVideo: React.FC = () => {
                           <Button
                             size={'small'}
                             type={'text'}
-                            style={{
-                              cursor: 'pointer',
-                            }}
                             icon={<CloseCircleOutlined />}
-                            onClick={() => {
-                              setSelect(false);
-                            }}
+                            onClick={() => setSelect(false)}
                           />
                         }
                         filterOption={false}
@@ -817,12 +792,14 @@ const UploadVideo: React.FC = () => {
                         {animeMsg?.language}
                       </Tag>
                     </Flex>
+
                     <Flex gap={'small'} align="center" justify="space-between">
                       {animeMsg?.score && <Rate disabled defaultValue={animeMsg?.score} />}
                       <div style={{ color: '#f9ad31', fontWeight: 'bold', fontSize: '20px' }}>
                         {animeMsg?.score?.toFixed(1)}{' '}
                       </div>
                     </Flex>
+
                     <InfoDisplay label={'导演：'} value={animeMsg?.director} />
                     <InfoDisplay
                       label={'演员：'}
@@ -830,13 +807,12 @@ const UploadVideo: React.FC = () => {
                       useTooltip={true}
                     />
                     <InfoDisplay label={'类型：'} value={animeMsg?.kind?.join(' ')} />
+
                     <Flex flex={1} align={'end'} style={{ width: '100%' }}>
                       <Flex justify={'space-between'} align={'center'} style={{ width: '100%' }}>
                         <Button
                           type="primary"
-                          onClick={() => {
-                            navigate('/player/?animeId=' + animeMsg?.id);
-                          }}
+                          onClick={() => navigate('/player/?animeId=' + animeMsg?.id)}
                           size={'large'}
                           icon={<PlayCircleOutlined />}
                           style={{ padding: '24px' }}
@@ -849,7 +825,7 @@ const UploadVideo: React.FC = () => {
                             await getAnimeData();
                             setOpen(true);
                           }}
-                          style={{ borderRadius: '20px', padding: '20px' }} // 自定义圆角半径
+                          style={{ borderRadius: '20px', padding: '20px' }}
                         >
                           修改
                         </Button>
@@ -857,6 +833,7 @@ const UploadVideo: React.FC = () => {
                     </Flex>
                   </Flex>
                 </Flex>
+
                 <Button
                   type="text"
                   size={'large'}
@@ -882,37 +859,49 @@ const UploadVideo: React.FC = () => {
                   variant="borderless"
                 />
               </Flex>
+
+              <Flex
+                vertical
+                justify={'start'}
+                align={'start'}
+                style={{
+                  height: type === 1 ? '0' : '100%',
+                  transform: `translateX(${type === 1 ? 100 : 0}%)`,
+                  opacity: type === 1 ? 0 : 1,
+                  transition: 'all 0.8s ease-in-out',
+                }}
+              >
+                <Test2 />
+              </Flex>
             </Card>
           </Sider>
+
           <Spin indicator={<LoadingOutlined spin />} spinning={isSorting} tip={'正在保存排序~'}>
             <Sider
               style={{
                 textAlign: 'center',
-                lineHeight: '120px',
                 color: '#fff',
-                // backgroundColor: '#e4c3de',
-                // backgroundColor: '#f5f5f5',
                 backgroundColor: token.colorBgLayout,
                 flex: 1,
                 maxHeight: '85vh',
                 overflowY: 'auto',
+                padding: '16px',
               }}
               className="custom-scrollbar"
             >
+              {/* 新增模式切换工具栏 */}
+              <ModeToolbar />
+
               {animeMsg?.videos?.map((video, index) => (
-                <div>
-                  <DraggableVideoCard
-                    key={video.id}
-                    video={video}
-                    index={index}
-                    moveCard={moveCard}
-                    onDragEnd={handleSortConfirm}
-                  >
-                    {VideoCard(video)}
-                  </DraggableVideoCard>
-                </div>
+                <DraggableVideoCard
+                  key={video.id}
+                  video={video}
+                  index={index}
+                  moveCard={moveCard}
+                  onDragEnd={handleSortConfirm}
+                />
               ))}
-              {/*{Menu(-1, addCard())}*/}
+
               <div onContextMenu={() => setSelectedVideoId(-1)}>
                 <Dropdown menu={{ items }} trigger={['contextMenu']}>
                   {addCard()}
@@ -920,24 +909,19 @@ const UploadVideo: React.FC = () => {
               </div>
             </Sider>
           </Spin>
-          {fileVideos?.map((item, index) => {
-            console.log('爽顺序：', index);
-            return (
-              <UploadArea
-                key={item.id}
-                fileVideo={item}
-                setFileVideo={(value) => {
-                  // setFileVideo(value);
-                  updateFileVideos(value);
-                }}
-                isVisible={fileVideo?.id === item.id} // 控制可见性
-                getAnimeData={getAnimeData}
-              />
-            );
-          })}
-          {/*<UploadArea fileVideo={fileVideo} setFileVideo={setFileVideo} getAnimeData={getAnimeData} />*/}
+
+          {fileVideos?.map((item) => (
+            <UploadArea
+              key={item.id}
+              fileVideo={item}
+              setFileVideo={(value) => updateFileVideos(value)}
+              isVisible={fileVideo?.id === item.id}
+              getAnimeData={getAnimeData}
+            />
+          ))}
         </Flex>
       </DndProvider>
+
       <Modal
         title={'范围添加集数'}
         open={isVideoFanShow}
@@ -971,10 +955,7 @@ const UploadVideo: React.FC = () => {
               label="开始"
               name="rankStart"
               rules={[
-                {
-                  required: true,
-                  message: 'Rank is required',
-                },
+                { required: true, message: 'Rank is required' },
                 {
                   validator: (_, value) => {
                     if (
@@ -997,10 +978,7 @@ const UploadVideo: React.FC = () => {
               label="结束"
               name="rankEnd"
               rules={[
-                {
-                  required: true,
-                  message: 'Rank is required',
-                },
+                { required: true, message: 'Rank is required' },
                 {
                   validator: (_, value) => {
                     if (value < formFan.getFieldValue('rankStart')) {
@@ -1016,6 +994,7 @@ const UploadVideo: React.FC = () => {
           </Flex>
         </Form>
       </Modal>
+
       <Modal
         title={'添加第' + videoForm?.rank + '集'}
         open={isVideoShow}
@@ -1028,7 +1007,7 @@ const UploadVideo: React.FC = () => {
           <Form.Item
             label="Anime ID"
             name="animeId"
-            hidden={true}
+            hidden
             rules={[{ required: true, message: 'Anime ID is required' }]}
           >
             <Input disabled variant="borderless" style={{ color: 'black' }} />
@@ -1049,16 +1028,13 @@ const UploadVideo: React.FC = () => {
           >
             <InputNumber
               onChange={(value) => {
-                setVideoForm({
-                  ...videoForm,
-                  // @ts-ignore
-                  rank: value,
-                });
+                setVideoForm({ ...videoForm, rank: value });
               }}
             />
           </Form.Item>
         </Form>
       </Modal>
+
       <Modal
         title={'修改动漫'}
         width={600}
@@ -1075,6 +1051,7 @@ const UploadVideo: React.FC = () => {
           animeMsg={animeMsg}
         />
       </Modal>
+
       <Modal
         title={'更新图片'}
         width={600}
@@ -1092,12 +1069,11 @@ const UploadVideo: React.FC = () => {
           onCancel={() => setImgOpen(false)}
         />
       </Modal>
+
       <Modal
         title={'修改该集信息'}
         width={600}
-        onCancel={() => {
-          setVideoEditOpen(false);
-        }}
+        onCancel={() => setVideoEditOpen(false)}
         cancelText={'完成'}
         open={videoEditOpen}
         style={{ padding: '16px' }}
@@ -1108,95 +1084,25 @@ const UploadVideo: React.FC = () => {
           <VideoEdit
             video={animeMsg?.videos?.find((item) => item.id === selectedVideoId)}
             reload={getAnimeData}
-            onCancel={() => {
-              setVideoEditOpen(false);
-            }}
+            onCancel={() => setVideoEditOpen(false)}
           />
         </Form>
       </Modal>
-      <FloatButton.Group
-        open={openFloat2}
-        trigger="click"
-        onClick={() => {
-          setOpenFloat2(!openFloat2);
-        }}
-        type="primary"
-        style={{ insetInlineEnd: 158 }}
-        shape={'square'}
-        description={openFloat2 ? '' : modeName2}
-        icon={''}
-      >
-        <FloatButton
-          shape={'square'}
-          description={'手动模式'}
-          type={mode2 === 'rengong' ? 'primary' : 'default'}
-          onClick={() => handleModeChange2('rengong')}
-        />
-        <FloatButton
-          shape={'square'}
-          description={'自动模式'}
-          type={mode2 === 'auto' ? 'primary' : 'default'}
-          onClick={() => handleModeChange2('auto')}
-        />
-      </FloatButton.Group>
-      <FloatButton.Group
-        open={openFloat}
-        trigger="click"
-        onClick={() => {
-          setOpenFloat(!openFloat);
-        }}
-        type="primary"
+
+      <FloatButton
+        shape="circle"
         style={{ insetInlineEnd: 108 }}
-        shape={'square'}
-        description={openFloat ? '' : modeName}
-        icon={''}
-      >
-        <FloatButton
-          shape={'square'}
-          description={'选择模式'}
-          type={mode === 'select' ? 'primary' : 'default'}
-          onClick={() => handleModeChange('select')}
-        />
-        <FloatButton
-          shape={'square'}
-          description={'删除模式'}
-          type={mode === 'delete' ? 'primary' : 'default'}
-          onClick={() => handleModeChange('delete')}
-          badge={{ count: selectedVideoIds.length }}
-        />
-        <FloatButton
-          shape={'square'}
-          description={'修改模式'}
-          type={mode === 'edit' ? 'primary' : 'default'}
-          onClick={() => handleModeChange('edit')}
-        />
-      </FloatButton.Group>
-      {mode === 'delete' && selectedVideoIds.length > 0 && (
-        <FloatButton
-          style={{ insetInlineEnd: 58 }}
-          shape={'square'}
-          icon={<DeleteOutlined style={{ color: token.colorError }} />}
-          onClick={handleBatchDelete}
-        />
-      )}
-      <Modal
-        open={autoAdd}
-        title={'上传文件批量添加'}
-        onCancel={() => {
-          setAutoAdd(false);
-        }}
-      >
-        <Test3
-          animeId={animeId}
-          animeMsg={animeMsg}
-          setAnimeMsg={setAnimeMsg}
-          fileVideos={fileVideos}
-          setFileVideos={setFileVideos}
-          onCancel={() => setAutoAdd(false)}
-        />
-      </Modal>
+        icon={<QuestionCircleOutlined style={{ color: token.colorPrimary }} />}
+        tooltip={
+          <div style={{ maxWidth: 200 }}>
+            <p>选择模式：点击卡片查看详情</p>
+            <p>修改模式：点击卡片修改信息</p>
+            <p>删除模式：选择多个卡片批量删除</p>
+          </div>
+        }
+      />
     </>
   );
 };
 
-export default UploadVideo;
+export default TestPage;

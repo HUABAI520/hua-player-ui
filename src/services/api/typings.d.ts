@@ -152,6 +152,7 @@ declare namespace API {
     duration?: number;
     seek?: number;
     tuozhan?: FileNodes; // 前端专属字段
+    fileData?: any; // 前端专属字段
   };
 
   type BaseResponseAnimeIndexResp = {

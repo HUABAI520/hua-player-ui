@@ -1,5 +1,6 @@
 import { formatFileSize } from '@/common/utils/FileSizeUtils';
 import { formatSeekTimeToCHEN } from '@/common/utils/timeUtil';
+import ImageUploader from '@/pages/Manage/components/imageUpload';
 import { deleteVideo, get, uploadVideo, uploadVideoPicture } from '@/services/api/animeController';
 import { getFileById } from '@/services/api/fileController';
 import {
@@ -28,7 +29,7 @@ import {
   UploadFile,
 } from 'antd';
 import Dragger from 'antd/es/upload/Dragger';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface UploadAreaProps {
   fileVideo: API.AnimeVideosResp | undefined;
@@ -55,6 +56,8 @@ const UploadArea: React.FC<UploadAreaProps> = React.memo(
     const [isUploading, setIsUploading] = useState(false); // 是否运行上传
     const [frames, setFrames] = useState<string[]>();
     const [duration, setDuration] = useState<number>(fileVideo?.duration || 0);
+    const durationRef = useRef<number | null>(null);
+    durationRef.current = duration;
     // 删除相关状态
     // 在组件顶部添加状态
     const [hoverCardId, setHoverCardId] = useState<number | null>(null);
@@ -145,12 +148,25 @@ const UploadArea: React.FC<UploadAreaProps> = React.memo(
       });
     };
     const extractFramesFromVideo = async (file: Blob, times: number[]): Promise<string[]> => {
-      return new Promise((resolve, reject) => {
+      // 空值快速处理
+      if (!file || !times || times.length === 0) return [];
+      return new Promise((resolve) => {
         const videoElement = document.createElement('video');
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
-        const url = URL.createObjectURL(file); // 创建视频的临时 URL
+        // 关键修改：强制类型转换为Blob并使用try-catch包裹
+        let url: string;
+        try {
+          // 双重确保：先转换为Blob，再通过slice创建兼容实例
+          const blob = file as Blob;
+          const compatibleBlob = blob.slice(0, blob.size, blob.type);
+          url = URL.createObjectURL(compatibleBlob);
+        } catch (e) {
+          // 即使出错也返回空数组，避免未处理的rejection
+          return resolve([]);
+        }
+
         videoElement.src = url;
 
         videoElement.addEventListener('loadedmetadata', () => {
@@ -168,16 +184,17 @@ const UploadArea: React.FC<UploadAreaProps> = React.memo(
             })
             .catch((error) => {
               URL.revokeObjectURL(url);
-              reject(error); // 处理错误
+              resolve([]); // 捕获内部错误，避免未处理rejection
             });
         });
 
-        videoElement.addEventListener('error', (error) => {
+        videoElement.addEventListener('error', () => {
           URL.revokeObjectURL(url);
-          reject(error); // 处理错误
+          resolve([]); // 视频错误时返回空数组
         });
       });
     };
+
     const splitFile = (file: File, maxChunkSize: number): Blob[] => {
       const chunks: Blob[] = [];
       const fileSize = file.size;
@@ -213,7 +230,8 @@ const UploadArea: React.FC<UploadAreaProps> = React.memo(
           fileSuffix: fileSuffix,
           partNumber: chunkIndex + 1,
           total: blobList.length,
-          duration: chunkIndex + 1 === blobList.length ? Math.floor(duration) : undefined, // 当前分片索引是最后一个时，设置时长
+          duration:
+            chunkIndex + 1 === blobList.length ? Math.floor(durationRef.current || 0) : undefined, // 当前分片索引是最后一个时，设置时长
         },
         formData.get('file') as File,
       );
@@ -313,6 +331,11 @@ const UploadArea: React.FC<UploadAreaProps> = React.memo(
       // processNextChunk(); // 开始上传
     };
     useEffect(() => {
+      if (fileVideo?.fileData) {
+        handleFileUpload(fileVideo?.fileData);
+      }
+    }, [fileVideo?.file]);
+    useEffect(() => {
       if (!isPaused && isUploading) {
         processNextChunk();
       }
@@ -341,16 +364,15 @@ const UploadArea: React.FC<UploadAreaProps> = React.memo(
         message.error('上传失败');
       }
     };
-    useEffect(() => {
-      if (frames && frames.length > 0) {
-        // 从 base64 数据中提取并转换为 JPEG 格式的 File 对象
-        const base64Data = frames[0].split(',')[1];
-        const jpegFile = base64ToFile(`data:image/jpeg;base64,${base64Data}`, 'frame.jpg');
-
-        // 上传图像
-        uploadImage(jpegFile);
-      }
-    }, [frames]);
+    // useEffect(() => {
+    //   if (frames && frames.length > 0) {
+    //     // 从 base64 数据中提取并转换为 JPEG 格式的 File 对象
+    //     const base64Data = frames[0].split(',')[1];
+    //     const jpegFile = base64ToFile(`data:image/jpeg;base64,${base64Data}`, 'frame.jpg');
+    //     // 上传图像
+    //     uploadImage(jpegFile);
+    //   }
+    // }, [frames]);
     return (
       <div
         style={{
@@ -595,6 +617,7 @@ const UploadArea: React.FC<UploadAreaProps> = React.memo(
           <p>确定要永久删除该视频文件吗？</p>
           <p style={{ color: token.colorTextSecondary }}>删除后将无法恢复！</p>
         </Modal>
+        <ImageUploader uploadImage={uploadImage} frames={frames} />
       </div>
     );
   },

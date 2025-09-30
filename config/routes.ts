@@ -48,5 +48,17 @@ export default [
       { path: '/guanli/review', name: '举报审核', component: './Guanli/Review' },
     ],
   },
+  {
+    path: '/test',
+    name: '测试',
+    icon: 'smile',
+    component: './Guanli/Test2',
+  },
+  {
+    path: '/test2',
+    name: '测试2',
+    icon: 'smile',
+    component: './Guanli/Test3',
+  },
   { path: '*', layout: false, component: './404' },
 ];

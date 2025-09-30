@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { Button, Flex, List } from 'antd';
 import { FileOutlined, FolderOutlined } from '@ant-design/icons';
+import { Button, Flex, List } from 'antd';
+import { useEffect, useState } from 'react';
 
 const FolderItem = ({
   folder,
@@ -51,6 +51,12 @@ const FolderItem = ({
   );
 };
 const FileSplit = '/';
+const oneMb = 1024 * 1024;
+const MIN_CHUNK_SIZE = 6 * 1024 * 1024; // 6MB
+const MAX_CHUNK_SIZE = 100 * 1024 * 1024; // 6MB
+const getMaxChunkSize = (fileSize: number): number => {
+  return Math.min((Math.floor(fileSize / (200 * oneMb)) + 1) * 5 * oneMb + oneMb, MAX_CHUNK_SIZE);
+};
 const Test2 = () => {
   const [directoryHandle, setDirectoryHandle] = useState<any>(null);
   const [entries, setEntries] = useState<any[]>([]);
@@ -150,11 +156,111 @@ const Test2 = () => {
       setEntries([...entries]);
     }
   };
-  const handleVideoFile = (file: any) => {
-    console.log('点击视频', file);
+  const splitFile = (file: File, maxChunkSize: number): Blob[] => {
+    const chunks: Blob[] = [];
+    const fileSize = file.size;
+    if (fileSize <= 5 * 1024 * 1024) {
+      chunks.push(file);
+      return chunks;
+    }
+    for (let i = 0; i < fileSize; i += maxChunkSize) {
+      if (i + MIN_CHUNK_SIZE + maxChunkSize > fileSize) {
+        chunks.push(file.slice(i, fileSize));
+        return chunks;
+      } else chunks.push(file.slice(i, i + maxChunkSize));
+    }
+    return chunks;
   };
+  const extractFrameAtTime = (
+    videoElement: HTMLVideoElement,
+    canvas: HTMLCanvasElement,
+    ctx: CanvasRenderingContext2D | null,
+    time: number,
+    videoDuration: number,
+  ): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      // 超过就除以2 直到不超过
+      while (time > videoDuration) {
+        time = time / 2;
+      }
+      videoElement.currentTime = time; // 跳转到指定时间
+
+      videoElement.addEventListener(
+        'seeked',
+        () => {
+          // 设置画布的尺寸为视频的尺寸
+          canvas.width = videoElement.videoWidth;
+          canvas.height = videoElement.videoHeight;
+
+          // 将帧绘制到画布上
+          ctx?.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+          // 获取图片的 data URL
+          const dataURL = canvas.toDataURL('image/png');
+          resolve(dataURL); // 返回图片数据
+        },
+        { once: true },
+      );
+
+      videoElement.addEventListener('error', (error) => {
+        reject(error); // 处理错误
+      });
+    });
+  };
+  const extractFramesFromVideo = async (file: Blob, times: number[]): Promise<string[]> => {
+    return new Promise((resolve, reject) => {
+      const videoElement = document.createElement('video');
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      const url = URL.createObjectURL(file); // 创建视频的临时 URL
+      videoElement.src = url;
+
+      videoElement.addEventListener('loadedmetadata', () => {
+        // 计算视频时长并开始处理
+        const videoDuration = videoElement.duration; // 视频总时长
+        const imagePromises = times.map((time) =>
+          extractFrameAtTime(videoElement, canvas, ctx, time, videoDuration),
+        );
+
+        Promise.all(imagePromises)
+          .then((images) => {
+            URL.revokeObjectURL(url); // 清理临时 URL
+            resolve(images); // 返回所有图像数据
+          })
+          .catch((error) => {
+            URL.revokeObjectURL(url);
+            reject(error); // 处理错误
+          });
+      });
+
+      videoElement.addEventListener('error', (error) => {
+        URL.revokeObjectURL(url);
+        reject(error); // 处理错误
+      });
+    });
+  };
+  const [frames, setFrames] = useState<string[]>();
+  // 手动选择文件列表上传按照这个顺序
+  const [vfiles, setVFiles] = useState<any[]>([]);
+  const handleVideoFile = async (file: any) => {
+    console.log('点击视频', file);
+    // 添加到vfiles最后
+    setVFiles([...vfiles, file]);
+    // const chunks = splitFile(file, getMaxChunkSize(file.size));
+    // // 遍历打印
+    // chunks.forEach((item, index) => {
+    //   console.log('打印', item, index);
+    // });
+    // const times = [900]; // 要提取的时间点（秒）
+    // // 从每个分片中提取第一帧
+    // const firstFrameImage = await extractFramesFromVideo(file, times);
+    // setFrames(firstFrameImage);
+  };
+
   const handleGetFile = async (file: any) => {
     const path = file.path;
+    console.log('点击文件', path);
     const c = path.split(FileSplit);
     const f = files.filter((item) => item.id !== path);
     let handle = directoryHandle;
@@ -178,6 +284,10 @@ const Test2 = () => {
   return (
     <div>
       <Button onClick={handlePickDirectory}>选择文件夹</Button>
+      {/*frames 是 base64 数据 展示图片 */}
+      {frames?.map((item, index) => (
+        <img key={index} src={item} alt={`frame ${index}`} />
+      ))}
       {directoryHandle && (
         <Flex style={{ width: '100 %' }}>
           <Flex vertical style={{ width: '20%' }}>

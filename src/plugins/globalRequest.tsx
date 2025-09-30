@@ -7,7 +7,6 @@ import { message, notification } from 'antd';
 import { loginPath } from '@/common/GlobalKey';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
-import NProgress from 'nprogress';
 import 'nprogress/nprogress.css';
 import { stringify } from 'qs';
 import { extend } from 'umi-request';
@@ -62,11 +61,11 @@ const request = extend({
   prefix:
     process.env.NODE_ENV === 'production'
       ? // ?
-        'http://localhost:9999/api-player'
+        'http://192.168.1.6:9999/api-player'
       : // 'http://192.168.2.2:9999/api-player'
         // ?  // 'http://localhost:8888'
         // ? 'https://l2.ac.cn/api-computer'
-        'http://localhost:9999/api-player',
+        'http://192.168.1.6:9999/api-player',
   // 'http://192.168.2.2:9999/api-player',
   // requestType: 'Form',
   errorHandler: (error: any) => {
